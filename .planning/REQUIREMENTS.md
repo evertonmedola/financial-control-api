@@ -48,9 +48,11 @@ Requirements for initial release (API local completa, containerizada). Deploy AW
 
 ## v2 Requirements
 
-Deferred to future release. Tracked but not in current roadmap.
+Deferred to future release. Tracked but not in current roadmap, with one exception noted below.
 
 ### Deployment & Infrastructure
+
+> **Note:** INFRA-01..04 are formally v2 scope, but PROJECT.md's Constraints section mandates the incremental order "API local funcionando → containerização → infraestrutura AWS → CI/CD, sem pular etapas" and the Core Value explicitly targets a full AWS deployment. Per that explicit project constraint, INFRA-01..04 were pulled into the v1 roadmap as Phases 7-9 (Containerization, AWS Infrastructure, CI/CD) — see Traceability below.
 
 - **INFRA-01**: Application runs in Docker (multi-stage build) locally and in ECS Fargate
 - **INFRA-02**: Infrastructure provisioned on AWS: VPC (public/private subnets), RDS PostgreSQL (private, not publicly accessible), ECS Fargate behind an Application Load Balancer, Secrets Manager for credentials
@@ -87,33 +89,38 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | TBD | Pending |
-| AUTH-02 | TBD | Pending |
-| AUTH-03 | TBD | Pending |
-| AUTH-04 | TBD | Pending |
-| ACCT-01 | TBD | Pending |
-| ACCT-02 | TBD | Pending |
-| ACCT-03 | TBD | Pending |
-| ACCT-04 | TBD | Pending |
-| CAT-01 | TBD | Pending |
-| CAT-02 | TBD | Pending |
-| TXN-01 | TBD | Pending |
-| TXN-02 | TBD | Pending |
-| TXN-03 | TBD | Pending |
-| TXN-04 | TBD | Pending |
-| TXN-05 | TBD | Pending |
-| BUD-01 | TBD | Pending |
-| BUD-02 | TBD | Pending |
-| BUD-03 | TBD | Pending |
-| REP-01 | TBD | Pending |
-| REP-02 | TBD | Pending |
-| REP-03 | TBD | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| ACCT-01 | Phase 2 | Pending |
+| ACCT-02 | Phase 2 | Pending |
+| ACCT-03 | Phase 2 | Pending |
+| ACCT-04 | Phase 2 | Pending |
+| CAT-01 | Phase 3 | Pending |
+| CAT-02 | Phase 3 | Pending |
+| TXN-01 | Phase 4 | Pending |
+| TXN-02 | Phase 4 | Pending |
+| TXN-03 | Phase 4 | Pending |
+| TXN-04 | Phase 4 | Pending |
+| TXN-05 | Phase 4 | Pending |
+| BUD-01 | Phase 5 | Pending |
+| BUD-02 | Phase 5 | Pending |
+| BUD-03 | Phase 5 | Pending |
+| REP-01 | Phase 6 | Pending |
+| REP-02 | Phase 6 | Pending |
+| REP-03 | Phase 6 | Pending |
+| INFRA-01 | Phase 7 | Pending |
+| INFRA-02 | Phase 8 | Pending |
+| INFRA-03 | Phase 9 | Pending |
+| INFRA-04 | Phase 9 | Pending |
 
 **Coverage:**
 - v1 requirements: 21 total
-- Mapped to phases: 0 (filled by roadmap creation)
-- Unmapped: 21 ⚠️ (expected — roadmap not yet created)
+- Mapped to phases: 21/21 ✓
+- Unmapped: 0
+- Additionally mapped (v2 pulled forward per PROJECT.md constraint): INFRA-01..04 → Phases 7-9
 
 ---
 *Requirements defined: 2026-09-11*
-*Last updated: 2026-09-11 after initial definition*
+*Last updated: 2026-09-11 after roadmap creation*
