@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 1
+current_phase: 01
 current_phase_name: Authentication & Multi-Tenant Foundation
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-09-11T19:01:02.507Z"
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-09-11T22:55:44.695Z"
 last_activity: 2026-09-11
-last_activity_desc: Roadmap created (9 phases, 21 v1 requirements + INFRA-01..04 mapped)
-state_head: f0148d7be94d6aecd1022f3a4b36adfcceaf3959
+last_activity_desc: Phase 01 execution started
+state_head: edcbd3535069283d85d04cdc8217be0616303646
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 5
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-11)
 
 **Core value:** A API funciona localmente, com segurança tratada como requisito central (não como extra), e evolui em etapas incrementais claras até chegar a um deploy AWS completo e auditável.
-**Current focus:** Phase 1 - Authentication & Multi-Tenant Foundation
+**Current focus:** Phase 01 — Authentication & Multi-Tenant Foundation
 
 ## Current Position
 
-Phase: 1 (Authentication & Multi-Tenant Foundation) — READY TO EXECUTE
-Plan: 0 of TBD in current phase
+Phase: 01 (Authentication & Multi-Tenant Foundation) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-09-11 — Roadmap created (9 phases, 21 v1 requirements + INFRA-01..04 mapped)
+Last activity: 2026-09-11 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -54,6 +54,11 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P01 | 50min | 2 tasks | 33 files |
 
 ## Accumulated Context
 
@@ -65,6 +70,8 @@ Recent decisions affecting current work:
 - Roadmap: Domain phases (1-6) sequenced strictly by data dependency (auth → accounts/categories → transactions/transfers → budgets → reports), matching research SUMMARY.md's dependency analysis.
 - Roadmap: Infrastructure phases (7-9: Containerization, AWS Infrastructure, CI/CD) placed after all domain phases, per PROJECT.md's explicit constraint to never skip the incremental order (API local → containerização → AWS → CI/CD).
 - Roadmap: INFRA-01..04 (labeled v2 in REQUIREMENTS.md) are included as Phases 7-9 of this roadmap, since PROJECT.md's core value explicitly requires reaching a full AWS deployment, not just the local API.
+- [Phase 01]: Global ValidationPipe/ClassSerializerInterceptor/ResponseInterceptor registered as APP_PIPE/APP_INTERCEPTOR DI providers in AppModule (not imperatively in main.ts) so e2e tests share identical behavior with production bootstrap
+- [Phase 01]: Discrete DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME env vars chosen over a single DATABASE_URL, matching docker-compose.yml service vars one-to-one
 
 ### Pending Todos
 
@@ -87,6 +94,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-11T17:56:22.544Z
-Stopped at: Phase 1 context gathered
-Resume file: D:/FinancialControl/.planning/phases/01-authentication-multi-tenant-foundation/01-CONTEXT.md
+Last session: 2026-09-11T22:55:44.663Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None

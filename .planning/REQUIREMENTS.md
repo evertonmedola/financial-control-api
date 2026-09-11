@@ -9,10 +9,10 @@ Requirements for initial release (API local completa, containerizada). Deploy AW
 
 ### Authentication
 
-- [ ] **AUTH-01**: User can sign up with email and password (senha com hash bcrypt/argon2, nunca em texto plano)
-- [ ] **AUTH-02**: User can log in and receive a JWT that authenticates subsequent requests
-- [ ] **AUTH-03**: User session is stateless via JWT (sem persistência de sessão no servidor)
-- [ ] **AUTH-04**: User can only access their own data — every domain entity is scoped by `userId`, enforced at the service layer (never trusting client-supplied IDs)
+- [x] **AUTH-01**: User can sign up with email and password (senha com hash bcrypt/argon2, nunca em texto plano)
+- [x] **AUTH-02**: User can log in and receive a JWT that authenticates subsequent requests
+- [x] **AUTH-03**: User session is stateless via JWT (sem persistência de sessão no servidor)
+- [x] **AUTH-04**: User can only access their own data — every domain entity is scoped by `userId`, enforced at the service layer (never trusting client-supplied IDs)
 
 ### Accounts
 
@@ -89,10 +89,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
-| AUTH-04 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Complete |
+| AUTH-02 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
+| AUTH-04 | Phase 1 | Complete |
 | ACCT-01 | Phase 2 | Pending |
 | ACCT-02 | Phase 2 | Pending |
 | ACCT-03 | Phase 2 | Pending |
@@ -116,6 +116,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-04 | Phase 9 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 21 total
 - Mapped to phases: 21/21 ✓
 - Unmapped: 0

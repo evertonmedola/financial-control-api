@@ -38,12 +38,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Requests to protected endpoints without a valid JWT are rejected, with no server-side session lookup required to validate the token (stateless).
   4. A user's JWT only ever grants access to that user's own data — verified via a protected endpoint that never returns another user's information, establishing the `{id, userId}`-scoped query pattern reused by every later module.
 
-**Plans**: 5 plans
+**Plans**: 1/5 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Walking Skeleton tracer: NestJS scaffold + Postgres, register, login, JWT guard, protected route, response hardening
+- [x] 01-01-PLAN.md — Walking Skeleton tracer: NestJS scaffold + Postgres, register, login, JWT guard, protected route, response hardening
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -210,7 +210,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Authentication & Multi-Tenant Foundation | 0/TBD | Not started | - |
+| 1. Authentication & Multi-Tenant Foundation | 1/5 | In Progress|  |
 | 2. Accounts | 0/TBD | Not started | - |
 | 3. Categories | 0/TBD | Not started | - |
 | 4. Transactions & Transfers | 0/TBD | Not started | - |
