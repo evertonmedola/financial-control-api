@@ -6,14 +6,25 @@ import { Repository } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { User } from '../src/auth/entities/user.entity';
 
-// supertest types response.body as `any` — this project's endpoints only
-// ever return this shape (register/me) or this one (login/error), so cast
-// explicitly at the read site instead of leaving every assertion untyped.
-interface AuthResponseBody {
+// supertest types response.body as `any` — every SUCCESS response this
+// project's endpoints return is wrapped in the {data, timestamp} envelope
+// (ResponseInterceptor); ERROR responses (thrown exceptions) are NOT wrapped
+// — they bypass interceptors and keep Nest's default {message, statusCode}
+// shape. Cast explicitly at the read site instead of leaving every
+// assertion untyped.
+interface AuthUserData {
   id?: string;
   email?: string;
   createdAt?: string;
   accessToken?: string;
+}
+
+interface EnvelopeBody {
+  data?: AuthUserData;
+  timestamp?: string;
+}
+
+interface ErrorBody {
   message?: string;
 }
 
@@ -50,10 +61,10 @@ describe('Auth (e2e)', () => {
         .post('/auth/register')
         .send({ email, password });
 
-      const body = response.body as AuthResponseBody;
+      const body = response.body as EnvelopeBody;
       expect(response.status).toBe(201);
-      expect(body).not.toHaveProperty('passwordHash');
-      expect(body.email).toBe(email);
+      expect(body.data).not.toHaveProperty('passwordHash');
+      expect(body.data?.email).toBe(email);
     });
 
     it('rejects a second registration with an already-used email', async () => {
@@ -107,10 +118,10 @@ describe('Auth (e2e)', () => {
         .post('/auth/login')
         .send({ email, password });
 
-      const body = response.body as AuthResponseBody;
+      const body = response.body as EnvelopeBody;
       expect(response.status).toBe(200);
-      expect(typeof body.accessToken).toBe('string');
-      expect((body.accessToken ?? '').split('.')).toHaveLength(3);
+      expect(typeof body.data?.accessToken).toBe('string');
+      expect((body.data?.accessToken ?? '').split('.')).toHaveLength(3);
     });
 
     it('returns a generic 401 for a wrong password', async () => {
@@ -124,7 +135,7 @@ describe('Auth (e2e)', () => {
         .post('/auth/login')
         .send({ email, password: 'wrong-password-123' });
 
-      const body = response.body as AuthResponseBody;
+      const body = response.body as ErrorBody;
       expect(response.status).toBe(401);
       expect(body.message).toBe('credenciais inválidas');
     });
@@ -145,8 +156,8 @@ describe('Auth (e2e)', () => {
         .post('/auth/login')
         .send({ email: uniqueEmail(), password });
 
-      const wrongPasswordBody = wrongPasswordResponse.body as AuthResponseBody;
-      const nonExistentBody = nonExistentResponse.body as AuthResponseBody;
+      const wrongPasswordBody = wrongPasswordResponse.body as ErrorBody;
+      const nonExistentBody = nonExistentResponse.body as ErrorBody;
 
       expect(nonExistentResponse.status).toBe(401);
       expect(nonExistentBody.message).toBe(wrongPasswordBody.message);
@@ -171,16 +182,16 @@ describe('Auth (e2e)', () => {
         .post('/auth/login')
         .send({ email, password });
 
-      const { accessToken } = loginResponse.body as AuthResponseBody;
+      const { accessToken } = (loginResponse.body as EnvelopeBody).data ?? {};
 
       const meResponse = await request(app.getHttpServer())
         .get('/auth/me')
         .set('Authorization', `Bearer ${accessToken}`);
 
-      const meBody = meResponse.body as AuthResponseBody;
+      const meBody = meResponse.body as EnvelopeBody;
       expect(meResponse.status).toBe(200);
-      expect(meBody.email).toBe(email);
-      expect(meBody).not.toHaveProperty('passwordHash');
+      expect(meBody.data?.email).toBe(email);
+      expect(meBody.data).not.toHaveProperty('passwordHash');
     });
 
     it('ignores a client-supplied userId in the query string and returns only the caller own data', async () => {
@@ -195,21 +206,49 @@ describe('Auth (e2e)', () => {
         .post('/auth/register')
         .send({ email: emailB, password })
         .expect(201);
-      const otherUserId = (userBRegisterResponse.body as AuthResponseBody).id;
+      const otherUserId = (userBRegisterResponse.body as EnvelopeBody).data?.id;
 
       const loginA = await request(app.getHttpServer())
         .post('/auth/login')
         .send({ email: emailA, password });
-      const { accessToken } = loginA.body as AuthResponseBody;
+      const { accessToken } = (loginA.body as EnvelopeBody).data ?? {};
 
       const meResponse = await request(app.getHttpServer())
         .get(`/auth/me?userId=${otherUserId}`)
         .set('Authorization', `Bearer ${accessToken}`);
 
-      const meBody = meResponse.body as AuthResponseBody;
+      const meBody = meResponse.body as EnvelopeBody;
       expect(meResponse.status).toBe(200);
-      expect(meBody.email).toBe(emailA);
-      expect(meBody.id).not.toBe(otherUserId);
+      expect(meBody.data?.email).toBe(emailA);
+      expect(meBody.data?.id).not.toBe(otherUserId);
+    });
+  });
+
+  describe('response envelope', () => {
+    it('wraps every successful response in a {data, timestamp} envelope', async () => {
+      const email = uniqueEmail();
+
+      const response = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email, password });
+
+      const body = response.body as EnvelopeBody;
+      expect(response.status).toBe(201);
+      expect(body).toHaveProperty('data');
+      expect(body).toHaveProperty('timestamp');
+      expect(typeof body.timestamp).toBe('string');
+      expect(body.data?.email).toBe(email);
+      expect(body.data).not.toHaveProperty('passwordHash');
+    });
+
+    it('rejects an unexpected extra field on the register payload with 400 instead of silently dropping it', async () => {
+      const email = uniqueEmail();
+
+      const response = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email, password, isAdmin: true });
+
+      expect(response.status).toBe(400);
     });
   });
 });
