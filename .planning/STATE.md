@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Authentication & Multi-Tenant Foundation
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-09-11T22:55:44.695Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-09-11T23:16:46.645Z"
 last_activity: 2026-09-11
 last_activity_desc: Phase 01 execution started
-state_head: edcbd3535069283d85d04cdc8217be0616303646
+state_head: 731037646a054ff19d881c62ab9ae6a36db96c7a
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 01 P01 | 50min | 2 tasks | 33 files |
+| Phase 01 P02 | 19min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Recent decisions affecting current work:
 - Roadmap: INFRA-01..04 (labeled v2 in REQUIREMENTS.md) are included as Phases 7-9 of this roadmap, since PROJECT.md's core value explicitly requires reaching a full AWS deployment, not just the local API.
 - [Phase 01]: Global ValidationPipe/ClassSerializerInterceptor/ResponseInterceptor registered as APP_PIPE/APP_INTERCEPTOR DI providers in AppModule (not imperatively in main.ts) so e2e tests share identical behavior with production bootstrap
 - [Phase 01]: Discrete DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME env vars chosen over a single DATABASE_URL, matching docker-compose.yml service vars one-to-one
+- [Phase 01]: [Phase 01-02]: Extracted configureApp(app) in src/main.ts (helmet, CORS allowlist, global exception filter) reused by both bootstrap() and e2e tests, since these three concerns have no DI-provider equivalent unlike ValidationPipe/interceptors
+- [Phase 01]: [Phase 01-02]: Added git.allow_default_branch_commits: true to .planning/config.json to match this project's already-established branching_strategy: "none" single-branch convention
 
 ### Pending Todos
 
@@ -94,6 +97,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-11T22:55:44.663Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-09-11T23:16:46.610Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
