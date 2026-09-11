@@ -3,17 +3,18 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 // Global ValidationPipe, ClassSerializerInterceptor, and ResponseInterceptor
 // are registered as DI providers in AppModule (APP_PIPE / APP_INTERCEPTOR),
 // not imperatively here — that way they're active in every INestApplication
 // built from AppModule, including e2e tests that never call this bootstrap().
 //
-// helmet() and enableCors() have no DI-provider equivalent — they're only
-// applicable on a constructed INestApplication instance. Extracted here
-// (rather than left inline in bootstrap()) and exported so
-// test/security.e2e-spec.ts can apply the byte-identical transport
-// hardening to its own TestingModule-built app; otherwise this
+// helmet(), enableCors(), and useGlobalFilters() have no DI-provider
+// equivalent — they're only applicable on a constructed INestApplication
+// instance. Extracted here (rather than left inline in bootstrap()) and
+// exported so test/security.e2e-spec.ts can apply the byte-identical
+// transport hardening to its own TestingModule-built app; otherwise this
 // configuration would be silently absent from every e2e test the same way
 // ValidationPipe/interceptors were before the 01-01 Rule 1 fix (see
 // 01-01-SUMMARY.md).
@@ -29,6 +30,7 @@ export function configureApp(app: INestApplication): void {
   // Explicit allowlist only — never '*' and never `origin: true` (security-
   // review checklist: "CORS configurado com origem explícita, nunca *").
   app.enableCors({ origin: allowedOrigins, credentials: true });
+  app.useGlobalFilters(new HttpExceptionFilter());
 }
 
 async function bootstrap() {
