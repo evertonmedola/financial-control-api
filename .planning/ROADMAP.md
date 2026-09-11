@@ -34,10 +34,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. A registered user can log in with correct credentials and receive a JWT; incorrect credentials are rejected.
   3. Requests to protected endpoints without a valid JWT are rejected, with no server-side session lookup required to validate the token (stateless).
   4. A user's JWT only ever grants access to that user's own data — verified via a protected endpoint that never returns another user's information, establishing the `{id, userId}`-scoped query pattern reused by every later module.
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 01-01: TBD
+- [ ] 01-01-PLAN.md — Walking Skeleton tracer: NestJS scaffold + Postgres, register, login, JWT guard, protected route, response hardening
+- [ ] 01-02-PLAN.md — Transport-level security hardening: helmet, explicit CORS, sanitized error responses
+- [ ] 01-03-PLAN.md — Refresh token lifecycle: issuance, rotation, reuse detection, logout (D-02/D-04)
+- [ ] 01-04-PLAN.md — Rate limiting on /auth/login and /auth/register (D-06)
+- [ ] 01-05-PLAN.md — Cross-tenant regression suite + security-review checklist close-out
 
 ### Phase 2: Accounts
 **Goal**: Users can manage their financial accounts (checking, savings, wallet, credit card) with balances that accurately reflect their transaction history.
