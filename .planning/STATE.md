@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Authentication & Multi-Tenant Foundation
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-09-11T23:16:46.645Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-09-11T23:47:16.587Z"
 last_activity: 2026-09-11
 last_activity_desc: Phase 01 execution started
-state_head: 731037646a054ff19d881c62ab9ae6a36db96c7a
+state_head: 8181e051fb3e35aee209acbaca1e894276edc6ff
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 5
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-09-11)
 ## Current Position
 
 Phase: 01 (Authentication & Multi-Tenant Foundation) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-09-11 — Phase 01 execution started
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 |------|----------|-------|-------|
 | Phase 01 P01 | 50min | 2 tasks | 33 files |
 | Phase 01 P02 | 19min | 2 tasks | 5 files |
+| Phase 01 P03 | 20min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,9 @@ Recent decisions affecting current work:
 - [Phase 01]: Discrete DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME env vars chosen over a single DATABASE_URL, matching docker-compose.yml service vars one-to-one
 - [Phase 01]: [Phase 01-02]: Extracted configureApp(app) in src/main.ts (helmet, CORS allowlist, global exception filter) reused by both bootstrap() and e2e tests, since these three concerns have no DI-provider equivalent unlike ValidationPipe/interceptors
 - [Phase 01]: [Phase 01-02]: Added git.allow_default_branch_commits: true to .planning/config.json to match this project's already-established branching_strategy: "none" single-branch convention
+- [Phase 01]: [Phase 01-03]: issueTokenPair(userId) extracted as shared private helper (login + refresh both use it) to avoid duplicating token-issuance logic
+- [Phase 01]: [Phase 01-03]: SHA-256 (not argon2) chosen for refresh-token-at-rest hashing — high-entropy random secret, no dictionary to defend against
+- [Phase 01]: [Phase 01-03]: security-review Skill invocation couldn't run (no origin remote for git diff) — checklist applied manually instead; flagged gap: /auth/refresh and /auth/logout have no rate limiting yet (deferred, D-06 scoped throttling to login/register only)
 
 ### Pending Todos
 
@@ -97,6 +101,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-11T23:16:46.610Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-09-11T23:47:16.538Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None
