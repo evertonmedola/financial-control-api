@@ -3,10 +3,14 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as argon2 from 'argon2';
+import * as crypto from 'crypto';
+import ms, { type StringValue } from 'ms';
 import { Repository } from 'typeorm';
+import { RefreshToken } from './entities/refresh-token.entity';
 import { User } from './entities/user.entity';
 
 const ARGON2_OPTIONS: argon2.HashOptions = {
@@ -33,7 +37,10 @@ export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
+    @InjectRepository(RefreshToken)
+    private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   async register(email: string, password: string): Promise<User> {
@@ -78,13 +85,52 @@ export class AuthService {
     return user;
   }
 
-  async login(user: User): Promise<{ accessToken: string }> {
+  async login(
+    user: User,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    return this.issueTokenPair(user.id);
+  }
+
+  /**
+   * Shared by login() and refresh() (Task 2) so token issuance has exactly
+   * one implementation: sign a stateless access token, then generate,
+   * hash, and persist a brand-new DB-backed refresh token (D-02/D-04).
+   */
+  private async issueTokenPair(
+    userId: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     // Payload carries ONLY `sub` — no email/PII (prohibition, AUTH-02).
     // expiresIn comes from the JwtModule's default sign options
     // (JWT_ACCESS_EXPIRES_IN, 15 minutes per D-03) — single source of truth.
-    const accessToken = await this.jwtService.signAsync({ sub: user.id });
+    const accessToken = await this.jwtService.signAsync({ sub: userId });
 
-    return { accessToken };
+    // High-entropy (512-bit) random value — never guessable, unlike a
+    // Math.random()-based token. Hashed with SHA-256 (not argon2) before
+    // persisting: this is already a random secret with no dictionary to
+    // defend against, so a slow KDF adds latency for zero security gain
+    // (01-RESEARCH.md Alternatives Considered).
+    const rawRefreshToken = crypto.randomBytes(64).toString('hex');
+    const tokenHash = this.hashToken(rawRefreshToken);
+    const refreshExpiresIn = this.configService.getOrThrow<string>(
+      'JWT_REFRESH_EXPIRES_IN',
+    ) as StringValue;
+    const expiresAt = new Date(Date.now() + ms(refreshExpiresIn));
+
+    const refreshTokenEntity = this.refreshTokenRepository.create({
+      userId,
+      tokenHash,
+      expiresAt,
+      revokedAt: null,
+    });
+    await this.refreshTokenRepository.save(refreshTokenEntity);
+
+    return { accessToken, refreshToken: rawRefreshToken };
+  }
+
+  // SHA-256, not argon2 — see issueTokenPair()'s comment on why a fast hash
+  // is the deliberate, correct choice for a high-entropy random secret.
+  private hashToken(raw: string): string {
+    return crypto.createHash('sha256').update(raw).digest('hex');
   }
 
   private isUniqueViolation(error: unknown): boolean {

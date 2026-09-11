@@ -1,15 +1,18 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as argon2 from 'argon2';
 import { Repository } from 'typeorm';
 import { AuthService } from './auth.service';
+import { RefreshToken } from './entities/refresh-token.entity';
 import { User } from './entities/user.entity';
 
 describe('AuthService', () => {
   let service: AuthService;
   let usersRepository: jest.Mocked<Repository<User>>;
+  let refreshTokenRepository: jest.Mocked<Repository<RefreshToken>>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -29,11 +32,30 @@ describe('AuthService', () => {
             findOne: jest.fn(),
           },
         },
+        {
+          provide: getRepositoryToken(RefreshToken),
+          useValue: {
+            create: jest.fn(),
+            save: jest.fn(),
+            findOne: jest.fn(),
+            update: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            getOrThrow: jest.fn((key: string) => {
+              if (key === 'JWT_REFRESH_EXPIRES_IN') return '7d';
+              throw new Error(`Unexpected config key requested: ${key}`);
+            }),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
     usersRepository = module.get(getRepositoryToken(User));
+    refreshTokenRepository = module.get(getRepositoryToken(RefreshToken));
   });
 
   afterEach(() => {
@@ -104,6 +126,15 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
+    beforeEach(() => {
+      refreshTokenRepository.create.mockImplementation(
+        (entityLike) => entityLike as RefreshToken,
+      );
+      refreshTokenRepository.save.mockImplementation((entity) =>
+        Promise.resolve(entity as RefreshToken),
+      );
+    });
+
     it('signs a JWT whose payload contains only sub (plus standard claims), never email', async () => {
       const user: Partial<User> = {
         id: 'user-id',
@@ -118,6 +149,30 @@ describe('AuthService', () => {
       expect(decoded.sub).toBe(user.id);
       expect(decoded).not.toHaveProperty('email');
       expect(Object.keys(decoded).sort()).toEqual(['exp', 'iat', 'sub'].sort());
+    });
+
+    it('issues a refresh token and persists only its SHA-256 hash, never the raw value', async () => {
+      const user: Partial<User> = {
+        id: 'user-id',
+        email: 'user@example.com',
+      };
+
+      const { refreshToken } = await service.login(user as User);
+
+      expect(typeof refreshToken).toBe('string');
+      expect(refreshToken.length).toBeGreaterThanOrEqual(64);
+      expect(refreshTokenRepository.create.mock.calls.length).toBe(1);
+      expect(refreshTokenRepository.save.mock.calls.length).toBe(1);
+
+      const createArg = refreshTokenRepository.create.mock
+        .calls[0][0] as Partial<RefreshToken>;
+      expect(createArg.userId).toBe(user.id);
+      expect(createArg.tokenHash).not.toBe(refreshToken);
+      expect(createArg.revokedAt).toBeNull();
+      expect(createArg.expiresAt).toBeInstanceOf(Date);
+      expect((createArg.expiresAt as Date).getTime()).toBeGreaterThan(
+        Date.now(),
+      );
     });
   });
 });

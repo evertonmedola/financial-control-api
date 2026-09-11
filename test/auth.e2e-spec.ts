@@ -5,6 +5,7 @@ import request from 'supertest';
 import { Repository } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { User } from '../src/auth/entities/user.entity';
+import { RefreshToken } from '../src/auth/entities/refresh-token.entity';
 
 // supertest types response.body as `any` — every SUCCESS response this
 // project's endpoints return is wrapped in the {data, timestamp} envelope
@@ -17,6 +18,7 @@ interface AuthUserData {
   email?: string;
   createdAt?: string;
   accessToken?: string;
+  refreshToken?: string;
 }
 
 interface EnvelopeBody {
@@ -31,6 +33,7 @@ interface ErrorBody {
 describe('Auth (e2e)', () => {
   let app: INestApplication;
   let usersRepository: Repository<User>;
+  let refreshTokensRepository: Repository<RefreshToken>;
 
   const uniqueEmail = () =>
     `user-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
@@ -46,6 +49,9 @@ describe('Auth (e2e)', () => {
 
     usersRepository = moduleFixture.get<Repository<User>>(
       getRepositoryToken(User),
+    );
+    refreshTokensRepository = moduleFixture.get<Repository<RefreshToken>>(
+      getRepositoryToken(RefreshToken),
     );
   });
 
@@ -122,6 +128,41 @@ describe('Auth (e2e)', () => {
       expect(response.status).toBe(200);
       expect(typeof body.data?.accessToken).toBe('string');
       expect((body.data?.accessToken ?? '').split('.')).toHaveLength(3);
+    });
+
+    it('login issues refresh token: response has both tokens, and the raw value is never persisted', async () => {
+      const email = uniqueEmail();
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email, password })
+        .expect(201);
+
+      const response = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email, password });
+
+      const body = response.body as EnvelopeBody;
+      expect(response.status).toBe(200);
+      expect(typeof body.data?.accessToken).toBe('string');
+      expect(typeof body.data?.refreshToken).toBe('string');
+      expect((body.data?.refreshToken ?? '').length).toBeGreaterThanOrEqual(64);
+
+      // A direct lookup by the raw refresh token value must return zero rows —
+      // only a SHA-256 hash of it is ever persisted (AUTH-03 prohibition P1).
+      const rawValueRow = await refreshTokensRepository.findOne({
+        where: { tokenHash: body.data?.refreshToken },
+      });
+      expect(rawValueRow).toBeNull();
+
+      const registeredUser = await usersRepository.findOne({
+        where: { email },
+      });
+      const hashedRow = await refreshTokensRepository.findOne({
+        where: { userId: registeredUser?.id },
+      });
+      expect(hashedRow).not.toBeNull();
+      expect(hashedRow?.revokedAt).toBeNull();
+      expect(hashedRow?.expiresAt.getTime()).toBeGreaterThan(Date.now());
     });
 
     it('returns a generic 401 for a wrong password', async () => {

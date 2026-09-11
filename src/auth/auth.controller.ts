@@ -33,7 +33,7 @@ export class AuthController {
   async login(
     @Req() request: { user: User },
     @Body() _dto: LoginDto,
-  ): Promise<{ accessToken: string }> {
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     return this.authService.login(request.user);
   }
 
