@@ -9,7 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as argon2 from 'argon2';
 import * as crypto from 'crypto';
 import ms, { type StringValue } from 'ms';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { User } from './entities/user.entity';
 
@@ -89,6 +89,60 @@ export class AuthService {
     user: User,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     return this.issueTokenPair(user.id);
+  }
+
+  /**
+   * Rotation + reuse detection (D-04, Pattern 3 in 01-RESEARCH.md): every
+   * call either rotates the presented token into a brand-new pair, or — if
+   * the presented token was already rotated (revokedAt set) — treats the
+   * replay as a signal the token was stolen and revokes every still-valid
+   * refresh token belonging to that user, forcing full re-login everywhere.
+   */
+  async refresh(
+    rawRefreshToken: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const tokenHash = this.hashToken(rawRefreshToken);
+    const stored = await this.refreshTokenRepository.findOne({
+      where: { tokenHash },
+    });
+
+    if (!stored) {
+      throw new UnauthorizedException(GENERIC_AUTH_ERROR);
+    }
+
+    if (stored.revokedAt) {
+      // Reuse of an already-rotated token — revoke the whole family, not
+      // just the presented row.
+      await this.refreshTokenRepository.update(
+        { userId: stored.userId, revokedAt: IsNull() },
+        { revokedAt: new Date() },
+      );
+      throw new UnauthorizedException(GENERIC_AUTH_ERROR);
+    }
+
+    if (stored.expiresAt < new Date()) {
+      throw new UnauthorizedException(GENERIC_AUTH_ERROR);
+    }
+
+    await this.refreshTokenRepository.update(stored.id, {
+      revokedAt: new Date(),
+    });
+
+    return this.issueTokenPair(stored.userId);
+  }
+
+  /**
+   * Revokes the presented refresh token. Idempotent by design — whether the
+   * token was already revoked or never existed, the response is the same,
+   * so a client can never learn which case occurred (mirrors D-05's
+   * generic-error philosophy applied to logout).
+   */
+  async logout(rawRefreshToken: string): Promise<void> {
+    const tokenHash = this.hashToken(rawRefreshToken);
+    await this.refreshTokenRepository.update(
+      { tokenHash },
+      { revokedAt: new Date() },
+    );
   }
 
   /**

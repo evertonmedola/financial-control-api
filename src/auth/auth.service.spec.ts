@@ -4,7 +4,8 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as argon2 from 'argon2';
-import { Repository } from 'typeorm';
+import * as crypto from 'crypto';
+import { IsNull, Repository } from 'typeorm';
 import { AuthService } from './auth.service';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { User } from './entities/user.entity';
@@ -173,6 +174,116 @@ describe('AuthService', () => {
       expect((createArg.expiresAt as Date).getTime()).toBeGreaterThan(
         Date.now(),
       );
+    });
+  });
+
+  describe('refresh', () => {
+    const rawToken = 'a'.repeat(128);
+    const tokenHash = crypto
+      .createHash('sha256')
+      .update(rawToken)
+      .digest('hex');
+
+    beforeEach(() => {
+      refreshTokenRepository.create.mockImplementation(
+        (entityLike) => entityLike as RefreshToken,
+      );
+      refreshTokenRepository.save.mockImplementation((entity) =>
+        Promise.resolve(entity as RefreshToken),
+      );
+    });
+
+    it('rotates a valid, unexpired token into a new pair and revokes the presented row (happy path)', async () => {
+      const stored: Partial<RefreshToken> = {
+        id: 'token-id',
+        userId: 'user-id',
+        tokenHash,
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      };
+      refreshTokenRepository.findOne.mockResolvedValue(stored as RefreshToken);
+
+      const result = await service.refresh(rawToken);
+
+      expect(typeof result.accessToken).toBe('string');
+      expect(typeof result.refreshToken).toBe('string');
+      expect(refreshTokenRepository.update.mock.calls[0]).toEqual([
+        'token-id',
+        { revokedAt: expect.any(Date) as Date },
+      ]);
+    });
+
+    it('throws the generic UnauthorizedException for an unknown token hash (error case)', async () => {
+      refreshTokenRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.refresh(rawToken)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(refreshTokenRepository.update.mock.calls.length).toBe(0);
+    });
+
+    it('reuse detection: an already-revoked token throws and revokes every still-valid token for that user', async () => {
+      const stored: Partial<RefreshToken> = {
+        id: 'token-id',
+        userId: 'user-id',
+        tokenHash,
+        revokedAt: new Date(),
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      };
+      refreshTokenRepository.findOne.mockResolvedValue(stored as RefreshToken);
+
+      await expect(service.refresh(rawToken)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(refreshTokenRepository.update.mock.calls[0]).toEqual([
+        { userId: 'user-id', revokedAt: IsNull() },
+        { revokedAt: expect.any(Date) as Date },
+      ]);
+    });
+
+    it('throws the generic UnauthorizedException for an expired, never-used token', async () => {
+      const stored: Partial<RefreshToken> = {
+        id: 'token-id',
+        userId: 'user-id',
+        tokenHash,
+        revokedAt: null,
+        expiresAt: new Date(Date.now() - 1000),
+      };
+      refreshTokenRepository.findOne.mockResolvedValue(stored as RefreshToken);
+
+      await expect(service.refresh(rawToken)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(refreshTokenRepository.update.mock.calls.length).toBe(0);
+    });
+  });
+
+  describe('logout', () => {
+    it('revokes the presented refresh token by its hash (happy path)', async () => {
+      const rawToken = 'b'.repeat(128);
+      const tokenHash = crypto
+        .createHash('sha256')
+        .update(rawToken)
+        .digest('hex');
+
+      await service.logout(rawToken);
+
+      expect(refreshTokenRepository.update.mock.calls[0]).toEqual([
+        { tokenHash },
+        { revokedAt: expect.any(Date) as Date },
+      ]);
+    });
+
+    it('does not throw when the token is unknown or already revoked (idempotent — never leaks which case occurred)', async () => {
+      refreshTokenRepository.update.mockResolvedValue({
+        affected: 0,
+        raw: [],
+        generatedMaps: [],
+      });
+
+      await expect(
+        service.logout('never-issued-token'),
+      ).resolves.toBeUndefined();
     });
   });
 });

@@ -1,11 +1,12 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import * as crypto from 'crypto';
 import request from 'supertest';
 import { Repository } from 'typeorm';
 import { AppModule } from '../src/app.module';
-import { User } from '../src/auth/entities/user.entity';
 import { RefreshToken } from '../src/auth/entities/refresh-token.entity';
+import { User } from '../src/auth/entities/user.entity';
 
 // supertest types response.body as `any` — every SUCCESS response this
 // project's endpoints return is wrapped in the {data, timestamp} envelope
@@ -262,6 +263,152 @@ describe('Auth (e2e)', () => {
       expect(meResponse.status).toBe(200);
       expect(meBody.data?.email).toBe(emailA);
       expect(meBody.data?.id).not.toBe(otherUserId);
+    });
+  });
+
+  describe('POST /auth/refresh', () => {
+    const registerAndLogin = async () => {
+      const email = uniqueEmail();
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email, password })
+        .expect(201);
+
+      const loginResponse = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email, password });
+
+      const data = (loginResponse.body as EnvelopeBody).data ?? {};
+      return { email, ...data } as {
+        email: string;
+        accessToken: string;
+        refreshToken: string;
+      };
+    };
+
+    it('rotation: a valid refresh token returns a brand-new pair and revokes the old row', async () => {
+      const { refreshToken } = await registerAndLogin();
+
+      const response = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken });
+
+      const body = response.body as EnvelopeBody;
+      expect(response.status).toBe(200);
+      expect(typeof body.data?.accessToken).toBe('string');
+      expect(typeof body.data?.refreshToken).toBe('string');
+      expect(body.data?.refreshToken).not.toBe(refreshToken);
+
+      const oldTokenHash = crypto
+        .createHash('sha256')
+        .update(refreshToken)
+        .digest('hex');
+      const oldRow = await refreshTokensRepository.findOne({
+        where: { tokenHash: oldTokenHash },
+      });
+      expect(oldRow?.revokedAt).not.toBeNull();
+    });
+
+    it('refresh token reuse detection: replaying an already-rotated token is rejected and revokes every sibling token for that user', async () => {
+      const email = uniqueEmail();
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email, password })
+        .expect(201);
+
+      // Two independent logins for the SAME user — two live sessions, two
+      // distinct, currently-valid refresh tokens.
+      const firstLogin = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email, password });
+      const { refreshToken: firstRefreshToken } =
+        (firstLogin.body as EnvelopeBody).data ?? {};
+
+      const secondLogin = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email, password });
+      const { refreshToken: siblingRefreshToken } =
+        (secondLogin.body as EnvelopeBody).data ?? {};
+
+      // Rotate the first session's token — this is a normal, legitimate
+      // refresh. The original firstRefreshToken is now revoked (rotated).
+      const rotateResponse = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken: firstRefreshToken });
+      expect(rotateResponse.status).toBe(200);
+
+      // Replay the SAME, now-rotated token — this is the reuse/compromise
+      // signal. The replayed request itself must be rejected...
+      const replayResponse = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken: firstRefreshToken });
+      expect(replayResponse.status).toBe(401);
+
+      // ...AND every other refresh token belonging to this user — including
+      // the still-valid sibling from the second login — must now also be
+      // revoked, forcing full re-login everywhere.
+      const siblingRefreshAfterReuse = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken: siblingRefreshToken });
+      expect(siblingRefreshAfterReuse.status).toBe(401);
+    });
+
+    it('an unknown/garbage refresh token returns 401', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken: 'this-token-was-never-issued' });
+
+      expect(response.status).toBe(401);
+    });
+
+    it('an expired (but never-used) refresh token returns 401', async () => {
+      const { email } = await registerAndLogin();
+      const user = await usersRepository.findOne({ where: { email } });
+
+      const rawExpiredToken = crypto.randomBytes(64).toString('hex');
+      const expiredTokenHash = crypto
+        .createHash('sha256')
+        .update(rawExpiredToken)
+        .digest('hex');
+      await refreshTokensRepository.save(
+        refreshTokensRepository.create({
+          userId: user?.id,
+          tokenHash: expiredTokenHash,
+          expiresAt: new Date(Date.now() - 1000),
+          revokedAt: null,
+        }),
+      );
+
+      const response = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken: rawExpiredToken });
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  describe('POST /auth/logout', () => {
+    it('revokes the presented refresh token; using it afterward behaves identically to any other revoked token (401)', async () => {
+      const email = uniqueEmail();
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email, password })
+        .expect(201);
+
+      const loginResponse = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email, password });
+      const { refreshToken } = (loginResponse.body as EnvelopeBody).data ?? {};
+
+      const logoutResponse = await request(app.getHttpServer())
+        .post('/auth/logout')
+        .send({ refreshToken });
+      expect([200, 204]).toContain(logoutResponse.status);
+
+      const refreshAfterLogout = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken });
+      expect(refreshAfterLogout.status).toBe(401);
     });
   });
 

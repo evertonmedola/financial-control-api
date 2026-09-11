@@ -11,6 +11,7 @@ import {
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { LoginDto } from './dto/login.dto';
+import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -42,5 +43,22 @@ export class AuthController {
   async me(@CurrentUser() userId: string): Promise<UserResponseDto> {
     const user = await this.authService.findById(userId);
     return UserResponseDto.fromEntity(user);
+  }
+
+  // Unauthenticated by JwtAuthGuard on purpose — these two endpoints
+  // authenticate via the refresh token itself, not a Bearer access token.
+  @HttpCode(HttpStatus.OK)
+  @Post('refresh')
+  async refresh(
+    @Body() dto: RefreshDto,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    return this.authService.refresh(dto.refreshToken);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('logout')
+  async logout(@Body() dto: RefreshDto): Promise<Record<string, never>> {
+    await this.authService.logout(dto.refreshToken);
+    return {};
   }
 }
