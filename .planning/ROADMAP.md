@@ -71,11 +71,20 @@ Plans:
   3. A credit card account's balance represents amount owed (a liability), not amount held.
   4. An account's balance always equals the sum of its transaction history, with no drift between the stored and derived value.
 
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
+**Wave 1**
 
-- [ ] 02-01: TBD
+- [ ] 02-01-PLAN.md — Tracer: create account end-to-end (entity, migration, DTOs, service.create, controller POST, module wiring)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 02-02-PLAN.md — Full CRUD: list/view/update/delete, immutable balance (D-02), soft delete (D-03), cross-tenant isolation suite
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 02-03-PLAN.md — No-drift invariant test, full regression, security-review checklist close-out
 
 ### Phase 3: Categories
 
