@@ -20,10 +20,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-11)
+See: .planning/PROJECT.md (updated 2026-09-12)
 
 **Core value:** A API funciona localmente, com segurança tratada como requisito central (não como extra), e evolui em etapas incrementais claras até chegar a um deploy AWS completo e auditável.
-**Current focus:** Phase 01 — Authentication & Multi-Tenant Foundation
+**Current focus:** Phase 2 — Accounts (Phase 1 complete)
 
 ## Current Position
 
@@ -84,6 +84,7 @@ Recent decisions affecting current work:
 - [Phase 01]: [Phase 01-04]: ThrottlerGuard registered as a plain provider + useExisting alias onto APP_GUARD (not bare useClass), so it's addressable by TestingModuleBuilder.overrideProvider() in e2e tests — Nest stores bare useClass APP_GUARD providers under an internal randomly-generated DI token every compile(), which testing overrides cannot target at all
 - [Phase 01]: [Phase 01-05]: Client-supplied-override sweep tests assert 400 (not silently-ignored 200) for POST endpoints, since global forbidNonWhitelisted:true rejects unexpected DTO fields — a stronger proof of no-override than checking the field was merely ignored
 - [Phase 01]: [Phase 01-05]: Reuse-detection cross-tenant test asserts refresh_tokens table state directly (A's full family revoked, B's sibling row unrevoked) rather than relying solely on HTTP response codes
+- [Phase 01]: Post-execution code review (before phase close-out) found and fixed 3 critical bugs the plan-time work missed: migrations used `uuid_generate_v4()` with no `uuid-ossp` extension installed (fails on any fresh DB — switched to native `gen_random_uuid()`), `ms`/`@types/ms` were undeclared phantom transitive dependencies, and `AuthService.refresh()` had a TOCTOU race allowing concurrent reuse of the same refresh token (closed via a single atomic conditional `UPDATE`). All 5 warning-level findings also fixed. See 01-REVIEW.md/01-REVIEW-FIX.md.
 
 ### Pending Todos
 
@@ -94,7 +95,6 @@ None yet.
 - Phase 2 (Transactions + Transfers, per research): TypeORM 1.x pessimistic locking API specifics are sparsely documented — validate exact `queryRunner`/`lock` API during Phase 4 planning rather than trusting 0.3.x-era examples.
 - Phase 8 (AWS Infrastructure): Fargate task sizing has no validated numeric starting point — start conservative and load-test rather than assuming vCPU/memory values from research.
 - Phase 9 (CI/CD): OIDC role scoping needs careful IAM policy design — a recurring failure mode noted in research pitfalls.
-- Decision needed during Phase 1 planning: bcrypt vs argon2 for password hashing (research defaults to bcrypt for simplicity, flags argon2 as the stronger OWASP-recommended choice).
 
 ## Deferred Items
 

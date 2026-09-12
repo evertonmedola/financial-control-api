@@ -12,7 +12,8 @@ A API funciona localmente, com segurança tratada como requisito central (não c
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Autenticação JWT (registro + login com email/senha) — Phase 1
+- ✓ Isolamento multi-tenant — cada usuário só acessa seus próprios dados — Phase 1
 
 ### Active
 
@@ -22,8 +23,6 @@ A API funciona localmente, com segurança tratada como requisito central (não c
 - [ ] Transferências entre contas
 - [ ] Orçamento mensal por categoria com cálculo de consumido/restante
 - [ ] Relatórios (JSON): resumo por categoria/período, saldo consolidado, comparação entre meses
-- [ ] Autenticação JWT (registro + login com email/senha)
-- [ ] Isolamento multi-tenant — cada usuário só acessa seus próprios dados
 - [ ] Containerização com Docker (multi-stage build)
 - [ ] Infraestrutura AWS: ECS Fargate atrás de ALB, RDS (PostgreSQL), Secrets Manager
 - [ ] CI/CD via GitHub Actions (build → push ECR → deploy)
@@ -63,9 +62,13 @@ A API funciona localmente, com segurança tratada como requisito central (não c
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Autenticação via JWT próprio (não Cognito) | Menos setup inicial, mais rápido para ter a API funcionando; Cognito fica como evolução futura | — Pending |
-| v1 = API local completa (Docker), deploy AWS é fase separada | Evita empurrar a primeira entrega funcional para depois de toda a infra AWS estar pronta | — Pending |
+| Autenticação via JWT próprio (não Cognito) | Menos setup inicial, mais rápido para ter a API funcionando; Cognito fica como evolução futura | ✓ Shipped Phase 1 — access+refresh JWT pair via `@nestjs/jwt`/passport-jwt, stateless verification |
+| v1 = API local completa (Docker), deploy AWS é fase separada | Evita empurrar a primeira entrega funcional para depois de toda a infra AWS estar pronta | — Pending (Phase 1 delivered locally; Docker is Phase 7) |
 | Relatórios v1 são só endpoints JSON | Front-end está fora de escopo nesta fase; visualização fica para depois | — Pending |
+| argon2 (não bcrypt) para hash de senha | OWASP recommends argon2id over bcrypt for new systems (stronger memory-hardness); resolved during Phase 1 planning per STATE.md's earlier open decision | ✓ Shipped Phase 1 |
+| Refresh token: rotação + detecção de reuso por família | Um token roubado usado após rotação revoga toda a família, forçando novo login — limita o raio de impacto de um token vazado (D-04) | ✓ Shipped Phase 1 — atomic conditional `UPDATE` (hardened post-execution via code review, closing a TOCTOU race in the original read-then-write implementation) |
+| Rate limiting em `/auth/login` e `/auth/register` via `@nestjs/throttler` (D-06) | Mitiga brute-force e criação em massa de contas; aplicado nos dois endpoints, não só login | ✓ Shipped Phase 1 |
+| `userId`-scoping via `@CurrentUser()` decorator, nunca de input do cliente | Estabelece o padrão de isolamento multi-tenant que toda fase futura reutiliza sem alteração | ✓ Shipped Phase 1 — provado sob suíte adversarial de dois usuários (`cross-tenant.e2e-spec.ts`) |
 
 ## Evolution
 
@@ -85,4 +88,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-11 after initialization*
+*Last updated: 2026-09-12 after Phase 1*
