@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Authentication & Multi-Tenant Foundation
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-09-11T23:47:16.587Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-09-12T13:53:17.940Z"
 last_activity: 2026-09-11
 last_activity_desc: Phase 01 execution started
-state_head: 8181e051fb3e35aee209acbaca1e894276edc6ff
+state_head: d03d1ca0884ecbe7eb0f36e325a708cab5b43569
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-09-11)
 ## Current Position
 
 Phase: 01 (Authentication & Multi-Tenant Foundation) — EXECUTING
-Plan: 3 of 5
+Plan: 2 of 5
 Status: Ready to execute
 Last activity: 2026-09-11 — Phase 01 execution started
 
@@ -61,6 +61,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01 | 50min | 2 tasks | 33 files |
 | Phase 01 P02 | 19min | 2 tasks | 5 files |
 | Phase 01 P03 | 20min | 2 tasks | 9 files |
+| Phase 01 P04 | 35min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,7 @@ Recent decisions affecting current work:
 - [Phase 01]: [Phase 01-03]: issueTokenPair(userId) extracted as shared private helper (login + refresh both use it) to avoid duplicating token-issuance logic
 - [Phase 01]: [Phase 01-03]: SHA-256 (not argon2) chosen for refresh-token-at-rest hashing — high-entropy random secret, no dictionary to defend against
 - [Phase 01]: [Phase 01-03]: security-review Skill invocation couldn't run (no origin remote for git diff) — checklist applied manually instead; flagged gap: /auth/refresh and /auth/logout have no rate limiting yet (deferred, D-06 scoped throttling to login/register only)
+- [Phase 01]: [Phase 01-04]: ThrottlerGuard registered as a plain provider + useExisting alias onto APP_GUARD (not bare useClass), so it's addressable by TestingModuleBuilder.overrideProvider() in e2e tests — Nest stores bare useClass APP_GUARD providers under an internal randomly-generated DI token every compile(), which testing overrides cannot target at all
 
 ### Pending Todos
 
@@ -101,6 +103,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-11T23:47:16.538Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-09-12T13:53:17.902Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None
