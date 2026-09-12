@@ -473,12 +473,12 @@ describe('Auth (e2e)', () => {
           .post('/auth/login')
           .send({ email, password: 'wrong-password' });
 
-      const responses = [];
+      const statuses: number[] = [];
       for (let i = 0; i < 6; i += 1) {
-        responses.push(await attempt());
+        const response = await attempt();
+        statuses.push(response.status);
       }
 
-      const statuses = responses.map((r) => r.status);
       expect(statuses.slice(0, 5).every((s) => s !== 429)).toBe(true);
       expect(statuses[5]).toBe(429);
     });
@@ -489,12 +489,12 @@ describe('Auth (e2e)', () => {
           .post('/auth/register')
           .send({ email: uniqueEmail(), password });
 
-      const responses = [];
+      const statuses: number[] = [];
       for (let i = 0; i < 4; i += 1) {
-        responses.push(await attempt());
+        const response = await attempt();
+        statuses.push(response.status);
       }
 
-      const statuses = responses.map((r) => r.status);
       expect(statuses.slice(0, 3).every((s) => s !== 429)).toBe(true);
       expect(statuses[3]).toBe(429);
     });
@@ -503,18 +503,19 @@ describe('Auth (e2e)', () => {
       // 10 requests comfortably exceeds the 5/3 login/register limits but
       // stays well under the 100/60s global default — proving this route
       // isn't accidentally covered by the tighter per-route overrides.
-      const responses = [];
+      const statuses: number[] = [];
       for (let i = 0; i < 10; i += 1) {
-        responses.push(
-          await request(rateLimitApp.getHttpServer()).get('/auth/me'),
+        const response = await request(rateLimitApp.getHttpServer()).get(
+          '/auth/me',
         );
+        statuses.push(response.status);
       }
 
-      expect(responses.every((r) => r.status !== 429)).toBe(true);
+      expect(statuses.every((s) => s !== 429)).toBe(true);
       // No Authorization header on any of these — every one is a 401, which
       // itself proves the requests actually reached the guard chain rather
       // than being short-circuited by something unrelated.
-      expect(responses.every((r) => r.status === 401)).toBe(true);
+      expect(statuses.every((s) => s === 401)).toBe(true);
     });
   });
 });
