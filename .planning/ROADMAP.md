@@ -13,7 +13,7 @@ The API is built as nine focused, sequential phases that follow the project's ex
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Authentication & Multi-Tenant Foundation** - Users can sign up, log in via JWT, and every later module inherits a proven per-user data isolation pattern
+- [x] **Phase 1: Authentication & Multi-Tenant Foundation** - Users can sign up, log in via JWT, and every later module inherits a proven per-user data isolation pattern (completed 2026-09-12)
 - [ ] **Phase 2: Accounts** - Users can manage typed financial accounts with balances that always match their transaction history
 - [ ] **Phase 3: Categories** - Users can organize income and expenses with their own custom categories
 - [ ] **Phase 4: Transactions & Transfers** - Users can record income/expenses and transfer money between accounts atomically, with decimal-safe amounts
@@ -210,7 +210,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Authentication & Multi-Tenant Foundation | 5/5 | In Progress|  |
+| 1. Authentication & Multi-Tenant Foundation | 5/5 | Complete    | 2026-09-12 |
 | 2. Accounts | 0/TBD | Not started | - |
 | 3. Categories | 0/TBD | Not started | - |
 | 4. Transactions & Transfers | 0/TBD | Not started | - |
