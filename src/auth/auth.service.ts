@@ -44,9 +44,13 @@ export class AuthService {
   ) {}
 
   async register(email: string, password: string): Promise<User> {
+    const normalizedEmail = this.normalizeEmail(email);
     const passwordHash = await argon2.hash(password, ARGON2_OPTIONS);
 
-    const user = this.usersRepository.create({ email, passwordHash });
+    const user = this.usersRepository.create({
+      email: normalizedEmail,
+      passwordHash,
+    });
 
     try {
       return await this.usersRepository.save(user);
@@ -59,7 +63,10 @@ export class AuthService {
   }
 
   async validateUser(email: string, password: string): Promise<User> {
-    const user = await this.usersRepository.findOne({ where: { email } });
+    const normalizedEmail = this.normalizeEmail(email);
+    const user = await this.usersRepository.findOne({
+      where: { email: normalizedEmail },
+    });
     const hashToVerify = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
 
     // Always call argon2.verify(), whether or not the user was found, so
@@ -205,6 +212,14 @@ export class AuthService {
   // is the deliberate, correct choice for a high-entropy random secret.
   private hashToken(raw: string): string {
     return crypto.createHash('sha256').update(raw).digest('hex');
+  }
+
+  // WR-02 fix: normalize once, centrally, before every DB touch that reads
+  // or writes the `email` column — without this, `User@Example.com` and
+  // `user@example.com` are treated as two different accounts (the unique
+  // constraint and every lookup compare raw, un-normalized strings).
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
   }
 
   private isUniqueViolation(error: unknown): boolean {
