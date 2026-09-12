@@ -439,4 +439,82 @@ describe('Auth (e2e)', () => {
       expect(response.status).toBe(400);
     });
   });
+
+  // A dedicated, separately-compiled app instance — built from the SAME,
+  // unmodified AppModule (real ThrottlerGuard active) — so these tests get
+  // their own isolated in-memory throttler storage and never share counts
+  // with the ~20 register/login calls the rest of this file makes against
+  // the shared `app` instance above (which, per Task 2, has its
+  // ThrottlerGuard overridden to a no-op specifically to avoid tripping on
+  // those unrelated calls).
+  describe('rate limiting (throttler)', () => {
+    let rateLimitApp: INestApplication;
+
+    beforeAll(async () => {
+      const moduleFixture: TestingModule = await Test.createTestingModule({
+        imports: [AppModule],
+      }).compile();
+
+      rateLimitApp = moduleFixture.createNestApplication();
+      await rateLimitApp.init();
+    });
+
+    afterAll(async () => {
+      await rateLimitApp.close();
+    });
+
+    it('returns 429 on the 6th POST /auth/login within the window (limit: 5/60s)', async () => {
+      const email = uniqueEmail();
+      // Deliberately wrong password — the ThrottlerGuard runs before the
+      // route handler, so a failing auth attempt still counts toward the
+      // throttle bucket, matching a real credential-stuffing attempt.
+      const attempt = () =>
+        request(rateLimitApp.getHttpServer())
+          .post('/auth/login')
+          .send({ email, password: 'wrong-password' });
+
+      const responses = [];
+      for (let i = 0; i < 6; i += 1) {
+        responses.push(await attempt());
+      }
+
+      const statuses = responses.map((r) => r.status);
+      expect(statuses.slice(0, 5).every((s) => s !== 429)).toBe(true);
+      expect(statuses[5]).toBe(429);
+    });
+
+    it('returns 429 on the 4th POST /auth/register within the window (limit: 3/60s)', async () => {
+      const attempt = () =>
+        request(rateLimitApp.getHttpServer())
+          .post('/auth/register')
+          .send({ email: uniqueEmail(), password });
+
+      const responses = [];
+      for (let i = 0; i < 4; i += 1) {
+        responses.push(await attempt());
+      }
+
+      const statuses = responses.map((r) => r.status);
+      expect(statuses.slice(0, 3).every((s) => s !== 429)).toBe(true);
+      expect(statuses[3]).toBe(429);
+    });
+
+    it('an unrelated endpoint (GET /auth/me) is governed by the global default limit, not the tighter login/register limits', async () => {
+      // 10 requests comfortably exceeds the 5/3 login/register limits but
+      // stays well under the 100/60s global default — proving this route
+      // isn't accidentally covered by the tighter per-route overrides.
+      const responses = [];
+      for (let i = 0; i < 10; i += 1) {
+        responses.push(
+          await request(rateLimitApp.getHttpServer()).get('/auth/me'),
+        );
+      }
+
+      expect(responses.every((r) => r.status !== 429)).toBe(true);
+      // No Authorization header on any of these — every one is a 401, which
+      // itself proves the requests actually reached the guard chain rather
+      // than being short-circuited by something unrelated.
+      expect(responses.every((r) => r.status === 401)).toBe(true);
+    });
+  });
 });
