@@ -20,7 +20,7 @@ created: "2026-09-11"
 | **Framework** | Jest (per STACK.md — default for NestJS v11/CommonJS projects) |
 | **Config file** | `test/jest-e2e.json` (e2e), default Jest config via `package.json` (unit) |
 | **Quick run command** | `npm run test -- auth` |
-| **Full suite command** | `npm run test` (unit, 12 tests) / `npm run test:e2e` (e2e, 34 tests across auth/security/cross-tenant specs) |
+| **Full suite command** | `npm run test` (unit, 13 tests) / `npm run test:e2e` (e2e, 36 tests across auth/security/cross-tenant specs) — counts include 2 concurrency tests added by the post-execution code-review fix (CR-03) |
 | **Estimated runtime** | ~6s (e2e), ~15s (unit) |
 
 ---

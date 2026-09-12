@@ -39,7 +39,7 @@ created: "2026-09-12"
 | T-01-05 | Information Disclosure | JWT payload (`AuthService.login()`) | medium | mitigate | Access token payload carries only `sub` — no email/PII field (verified: `src/auth/auth.service.ts:159`) | closed |
 | T-01-06 | Information Disclosure | Global exception filter / `main.ts` | medium | mitigate | `HttpExceptionFilter` strips stack traces/internal detail from client responses; stack logged server-side only (`src/common/filters/http-exception.filter.ts`); proven by `test/security.e2e-spec.ts` | closed |
 | T-01-07 | Tampering | `main.ts` CORS config | medium | mitigate | Explicit `ALLOWED_ORIGINS` allowlist from env, never `*`/`origin: true` (verified: `src/main.ts:24,32`) | closed |
-| T-01-08 | Elevation of Privilege | `AuthService.refresh()` | high | mitigate | Rotation + reuse detection: replaying an already-rotated token revokes the entire token family; proven by `auth.e2e-spec.ts:331` and `cross-tenant.e2e-spec.ts:187` (per-user scoping) | closed |
+| T-01-08 | Elevation of Privilege | `AuthService.refresh()` | high | mitigate | Rotation + reuse detection via a single atomic conditional `UPDATE ... WHERE token_hash = :h AND revoked_at IS NULL AND expires_at > :now` (strengthened by CR-03, commit `6388d76`, closing a TOCTOU race the post-execution code review found in the original read-then-write implementation); replaying an already-rotated token revokes the entire token family; proven by `auth.e2e-spec.ts:331`, new concurrency tests added in CR-03, and `cross-tenant.e2e-spec.ts:187` (per-user scoping) | closed |
 | T-01-09 | Information Disclosure | `refresh_tokens` storage | medium | mitigate | Only `sha256(raw)` persisted, never the raw token (verified: `src/auth/auth.service.ts:187`) | closed |
 | T-01-10 | Tampering | `AuthService.refresh()`/`logout()` scoping | high | mitigate | Every refresh-token DB operation scoped by the row's own stored `userId`, never a client-supplied identifier (verified: `src/auth/auth.service.ts:117`); proven under adversarial two-user test in `cross-tenant.e2e-spec.ts` | closed |
 | T-01-SC | Tampering (supply chain) | npm installs (`@nestjs/jwt`, `@nestjs/passport`) | high | mitigate | Package-legitimacy gate + blocking-human checkpoint completed at Plan 01-01 Task 0 before either package was installed | closed |
@@ -81,6 +81,7 @@ The following were explicitly identified during planning/execution as out of Pha
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
 | 2026-09-12 | 14 | 14 | 0 | /gsd-secure-phase (orchestrator, L1 grep-depth, no auditor dispatch — short-circuit rule) |
+| 2026-09-12 (follow-up) | 14 | 14 | 0 | Post-hoc: `/gsd-code-review 01` independently found a TOCTOU concurrency race in T-01-08's implementation (read-then-write, not atomic) that the L1 grep-depth threat audit above did not catch — grep confirms a mitigation control EXISTS, it does not prove the control is race-free under concurrent load. Fixed via `/gsd-code-review 01 --fix` (commit `6388d76`); re-verified via new concurrency tests + full suite (13 unit + 36 e2e, all green). T-01-08 evidence updated above. |
 
 ---
 
