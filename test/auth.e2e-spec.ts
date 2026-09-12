@@ -1,5 +1,6 @@
-import { INestApplication } from '@nestjs/common';
+import { CanActivate, INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import request from 'supertest';
@@ -7,6 +8,21 @@ import { Repository } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { RefreshToken } from '../src/auth/entities/refresh-token.entity';
 import { User } from '../src/auth/entities/user.entity';
+
+// The rest of this file's ~20 register/login calls, spread across many
+// unrelated describe blocks, share this single `app` instance and its
+// single in-memory throttler bucket per client IP — far more than the 3/5
+// per-60s limits @Throttle() enforces on /auth/register and /auth/login.
+// Rather than rewrite every pre-existing test to fake a distinct client
+// identity, override the ThrottlerGuard provider to a no-op for THIS app
+// instance only, via overrideProvider(ThrottlerGuard) — this targets the
+// stable class-token registration AppModule now exposes specifically for
+// this purpose (see app.module.ts's comment on the ThrottlerGuard/APP_GUARD
+// `useExisting` alias). The 'rate limiting (throttler)' describe block
+// below compiles its own, separate, un-overridden app (real ThrottlerGuard)
+// specifically to prove the 429 behavior — that's the only place it needs
+// to actually be exercised.
+const noopThrottlerGuard: CanActivate = { canActivate: () => true };
 
 // supertest types response.body as `any` — every SUCCESS response this
 // project's endpoints return is wrapped in the {data, timestamp} envelope
@@ -43,7 +59,10 @@ describe('Auth (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(ThrottlerGuard)
+      .useValue(noopThrottlerGuard)
+      .compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();

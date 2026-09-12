@@ -49,7 +49,21 @@ import { validate } from './config/env.validation';
     // Global guard — covers every endpoint in every module by default;
     // AuthController's login/register routes layer a tighter per-route
     // @Throttle() override on top of this same guard (D-06).
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    //
+    // Registered as a normal provider + `useExisting` alias (NOT a bare
+    // `{ provide: APP_GUARD, useClass: ThrottlerGuard }`) so the instance
+    // is addressable at the stable `ThrottlerGuard` DI token. Nest's
+    // scanner stores APP_GUARD/APP_INTERCEPTOR/APP_PIPE/APP_FILTER
+    // `useClass` providers under an internal, randomly-generated token
+    // (`${APP_GUARD} (UUID: ...)`) that TestingModuleBuilder's
+    // overrideGuard()/overrideProvider() cannot target — confirmed
+    // empirically while building test/auth.e2e-spec.ts's isolation for the
+    // "rate limiting" describe block, which needs to disable this same
+    // guard for its own, unrelated app instance. `useExisting` keeps the
+    // exact same singleton-instance, applied-globally behavior in
+    // production; it only adds a second, stable handle for tests.
+    ThrottlerGuard,
+    { provide: APP_GUARD, useExisting: ThrottlerGuard },
     // Registered as DI providers (not imperatively in main.ts) so these
     // global enhancers are active in EVERY INestApplication built from this
     // module — including e2e tests that construct their own application via
