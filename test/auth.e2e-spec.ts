@@ -372,6 +372,35 @@ describe('Auth (e2e)', () => {
       expect(siblingRefreshAfterReuse.status).toBe(401);
     });
 
+    it('concurrency: two simultaneous requests with the same valid refresh token — only one succeeds (CR-03)', async () => {
+      const { refreshToken } = await registerAndLogin();
+
+      const [first, second] = await Promise.all([
+        request(app.getHttpServer())
+          .post('/auth/refresh')
+          .send({ refreshToken }),
+        request(app.getHttpServer())
+          .post('/auth/refresh')
+          .send({ refreshToken }),
+      ]);
+
+      const statuses = [first.status, second.status].sort();
+      // Exactly one of the two concurrent requests rotates successfully;
+      // the other must observe the row as already revoked and be rejected
+      // with the generic 401 — never both succeeding (the TOCTOU race this
+      // fix closes) and never both failing.
+      expect(statuses).toEqual([200, 401]);
+
+      const oldTokenHash = crypto
+        .createHash('sha256')
+        .update(refreshToken)
+        .digest('hex');
+      const oldRow = await refreshTokensRepository.findOne({
+        where: { tokenHash: oldTokenHash },
+      });
+      expect(oldRow?.revokedAt).not.toBeNull();
+    });
+
     it('an unknown/garbage refresh token returns 401', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/refresh')

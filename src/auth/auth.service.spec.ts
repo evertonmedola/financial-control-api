@@ -40,6 +40,7 @@ describe('AuthService', () => {
             save: jest.fn(),
             findOne: jest.fn(),
             update: jest.fn(),
+            createQueryBuilder: jest.fn(),
           },
         },
         {
@@ -184,6 +185,30 @@ describe('AuthService', () => {
       .update(rawToken)
       .digest('hex');
 
+    // CR-03 fix: refresh() now rotates via a single atomic conditional
+    // UPDATE (createQueryBuilder().update().set().where()...returning()
+    // .execute()) instead of a separate findOne()+update() pair. This
+    // fluent-chain mock stands in for that query builder so each test can
+    // control what the atomic UPDATE "sees" (affected/raw) independently
+    // of the disambiguation findOne() used only when it doesn't apply.
+    const makeQueryBuilderMock = (executeResult: {
+      affected: number;
+      raw: unknown[];
+    }) => {
+      const qb = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        returning: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({
+          ...executeResult,
+          generatedMaps: [],
+        }),
+      };
+      return qb;
+    };
+
     beforeEach(() => {
       refreshTokenRepository.create.mockImplementation(
         (entityLike) => entityLike as RefreshToken,
@@ -193,27 +218,37 @@ describe('AuthService', () => {
       );
     });
 
-    it('rotates a valid, unexpired token into a new pair and revokes the presented row (happy path)', async () => {
-      const stored: Partial<RefreshToken> = {
-        id: 'token-id',
-        userId: 'user-id',
-        tokenHash,
-        revokedAt: null,
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-      };
-      refreshTokenRepository.findOne.mockResolvedValue(stored as RefreshToken);
+    it('rotates a valid, unexpired token into a new pair via the atomic conditional UPDATE (happy path)', async () => {
+      const qb = makeQueryBuilderMock({
+        affected: 1,
+        raw: [{ user_id: 'user-id' }],
+      });
+      refreshTokenRepository.createQueryBuilder.mockReturnValue(
+        qb as unknown as ReturnType<
+          typeof refreshTokenRepository.createQueryBuilder
+        >,
+      );
 
       const result = await service.refresh(rawToken);
 
       expect(typeof result.accessToken).toBe('string');
       expect(typeof result.refreshToken).toBe('string');
-      expect(refreshTokenRepository.update.mock.calls[0]).toEqual([
-        'token-id',
-        { revokedAt: expect.any(Date) as Date },
-      ]);
+      expect(qb.set).toHaveBeenCalledWith({ revokedAt: expect.any(Date) });
+      expect(qb.where).toHaveBeenCalledWith('token_hash = :tokenHash', {
+        tokenHash,
+      });
+      // findOne() is the reuse-detection disambiguation path — it must NOT
+      // run when the atomic UPDATE already succeeded.
+      expect(refreshTokenRepository.findOne).not.toHaveBeenCalled();
     });
 
     it('throws the generic UnauthorizedException for an unknown token hash (error case)', async () => {
+      const qb = makeQueryBuilderMock({ affected: 0, raw: [] });
+      refreshTokenRepository.createQueryBuilder.mockReturnValue(
+        qb as unknown as ReturnType<
+          typeof refreshTokenRepository.createQueryBuilder
+        >,
+      );
       refreshTokenRepository.findOne.mockResolvedValue(null);
 
       await expect(service.refresh(rawToken)).rejects.toBeInstanceOf(
@@ -223,6 +258,12 @@ describe('AuthService', () => {
     });
 
     it('reuse detection: an already-revoked token throws and revokes every still-valid token for that user', async () => {
+      const qb = makeQueryBuilderMock({ affected: 0, raw: [] });
+      refreshTokenRepository.createQueryBuilder.mockReturnValue(
+        qb as unknown as ReturnType<
+          typeof refreshTokenRepository.createQueryBuilder
+        >,
+      );
       const stored: Partial<RefreshToken> = {
         id: 'token-id',
         userId: 'user-id',
@@ -242,6 +283,12 @@ describe('AuthService', () => {
     });
 
     it('throws the generic UnauthorizedException for an expired, never-used token', async () => {
+      const qb = makeQueryBuilderMock({ affected: 0, raw: [] });
+      refreshTokenRepository.createQueryBuilder.mockReturnValue(
+        qb as unknown as ReturnType<
+          typeof refreshTokenRepository.createQueryBuilder
+        >,
+      );
       const stored: Partial<RefreshToken> = {
         id: 'token-id',
         userId: 'user-id',
@@ -255,6 +302,61 @@ describe('AuthService', () => {
         UnauthorizedException,
       );
       expect(refreshTokenRepository.update.mock.calls.length).toBe(0);
+    });
+
+    it('concurrency: two simultaneous refresh() calls with the same valid token — only one succeeds', async () => {
+      // Simulate the atomic UPDATE's real-world behavior under concurrency:
+      // exactly one of the two concurrent `execute()` calls "wins" the row
+      // (affected: 1); the other observes it already revoked (affected: 0)
+      // and falls through to the disambiguation findOne(), which reports
+      // the row as already revoked (this is what a real DB would return
+      // to the loser after the winner's UPDATE commits first).
+      let winnerTaken = false;
+      const qb = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        returning: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockImplementation(() => {
+          if (!winnerTaken) {
+            winnerTaken = true;
+            return Promise.resolve({
+              affected: 1,
+              raw: [{ user_id: 'user-id' }],
+              generatedMaps: [],
+            });
+          }
+          return Promise.resolve({ affected: 0, raw: [], generatedMaps: [] });
+        }),
+      };
+      refreshTokenRepository.createQueryBuilder.mockReturnValue(
+        qb as unknown as ReturnType<
+          typeof refreshTokenRepository.createQueryBuilder
+        >,
+      );
+      refreshTokenRepository.findOne.mockResolvedValue({
+        id: 'token-id',
+        userId: 'user-id',
+        tokenHash,
+        revokedAt: new Date(),
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      } as RefreshToken);
+
+      const [first, second] = await Promise.allSettled([
+        service.refresh(rawToken),
+        service.refresh(rawToken),
+      ]);
+
+      const fulfilled = [first, second].filter(
+        (r) => r.status === 'fulfilled',
+      );
+      const rejected = [first, second].filter((r) => r.status === 'rejected');
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(
+        UnauthorizedException,
+      );
     });
   });
 

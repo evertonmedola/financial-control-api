@@ -97,38 +97,58 @@ export class AuthService {
    * the presented token was already rotated (revokedAt set) — treats the
    * replay as a signal the token was stolen and revokes every still-valid
    * refresh token belonging to that user, forcing full re-login everywhere.
+   *
+   * The rotation itself is a single atomic conditional UPDATE (CR-03 fix):
+   * `revokedAt = now() WHERE tokenHash = :hash AND revokedAt IS NULL AND
+   * expiresAt > :now`. Postgres re-evaluates that WHERE clause against the
+   * row's current, locked version at UPDATE time, so if two requests
+   * present the same still-valid token concurrently, only the first one to
+   * apply can match `revokedAt IS NULL` — by the time the second UPDATE
+   * runs, it sees the row already revoked and `affected` comes back 0. This
+   * closes the previous read-then-write TOCTOU race where both concurrent
+   * requests could read `revokedAt: null` before either write committed.
    */
   async refresh(
     rawRefreshToken: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const tokenHash = this.hashToken(rawRefreshToken);
+    const now = new Date();
+
+    const rotateResult = await this.refreshTokenRepository
+      .createQueryBuilder()
+      .update(RefreshToken)
+      .set({ revokedAt: now })
+      .where('token_hash = :tokenHash', { tokenHash })
+      .andWhere('revoked_at IS NULL')
+      .andWhere('expires_at > :now', { now })
+      .returning('*')
+      .execute();
+
+    if (rotateResult.affected === 1) {
+      const rotated = rotateResult.raw[0] as { user_id: string };
+      return this.issueTokenPair(rotated.user_id);
+    }
+
+    // The atomic UPDATE above didn't apply — the token never existed, was
+    // already expired, or (the security-relevant case) was already
+    // revoked/rotated and is now being replayed. Re-fetch only to
+    // disambiguate for the reuse-detection side effect below; this read
+    // has no bearing on whether rotation succeeds — that was already
+    // decided atomically above — so it introduces no new race.
     const stored = await this.refreshTokenRepository.findOne({
       where: { tokenHash },
     });
 
-    if (!stored) {
-      throw new UnauthorizedException(GENERIC_AUTH_ERROR);
-    }
-
-    if (stored.revokedAt) {
+    if (stored?.revokedAt) {
       // Reuse of an already-rotated token — revoke the whole family, not
       // just the presented row.
       await this.refreshTokenRepository.update(
         { userId: stored.userId, revokedAt: IsNull() },
         { revokedAt: new Date() },
       );
-      throw new UnauthorizedException(GENERIC_AUTH_ERROR);
     }
 
-    if (stored.expiresAt < new Date()) {
-      throw new UnauthorizedException(GENERIC_AUTH_ERROR);
-    }
-
-    await this.refreshTokenRepository.update(stored.id, {
-      revokedAt: new Date(),
-    });
-
-    return this.issueTokenPair(stored.userId);
+    throw new UnauthorizedException(GENERIC_AUTH_ERROR);
   }
 
   /**
