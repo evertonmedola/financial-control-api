@@ -295,6 +295,29 @@ describe('Cross-tenant isolation (e2e)', () => {
       expect(response.status).toBe(400);
     });
 
+    it('POST /auth/login rejects an extra field with 400 even when the credentials are WRONG — shape validation runs before authentication (WR-04)', async () => {
+      const userA = await registerAndLogin('login-badcreds-a');
+
+      // Deliberately wrong password + an unexpected extra field. Before the
+      // WR-04 fix, LocalAuthGuard ran the full DB lookup + argon2 verify
+      // before the ValidationPipe ever saw the payload, so wrong-credentials
+      // requests short-circuited to 401 regardless of shape, while
+      // correct-credentials-plus-extra-field requests reached the pipe and
+      // got 400 — an inconsistent status code depending on credential
+      // validity. Now shape validation runs first for every request, so
+      // this malformed payload is rejected 400 without ever touching the
+      // DB/argon2, matching the correct-credentials-plus-extra-field case.
+      const response = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({
+          email: userA.email,
+          password: 'definitely-the-wrong-password',
+          userId: '11111111-1111-1111-1111-111111111111',
+        });
+
+      expect(response.status).toBe(400);
+    });
+
     it('POST /auth/refresh rejects a client-supplied userId override alongside a valid token instead of honoring it — the presented token is left untouched', async () => {
       const userA = await registerAndLogin('override-refresh-a');
       const userB = await registerAndLogin('override-refresh-b');
