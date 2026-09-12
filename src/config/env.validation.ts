@@ -22,7 +22,11 @@ export const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_ACCESS_EXPIRES_IN: z.string().min(1),
 
-  JWT_REFRESH_SECRET: z.string().min(32),
+  // No JWT_REFRESH_SECRET: refresh tokens are opaque crypto.randomBytes(64)
+  // values (DB-backed, hashed with SHA-256 before persisting), not signed
+  // JWTs — there is nothing to sign/verify, so no secret is needed (WR-05
+  // fix; removed a dead required env var that forced every environment to
+  // provision a secret that did nothing).
   JWT_REFRESH_EXPIRES_IN: z.string().min(1),
 
   ALLOWED_ORIGINS: z.string().min(1),
