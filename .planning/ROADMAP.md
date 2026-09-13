@@ -125,11 +125,21 @@ Plans:
   3. Transfers never appear in category spend totals or budget consumption — only income/expense transactions do.
   4. Monetary amounts round-trip exactly across create/list/update with no floating-point rounding drift.
 
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
+**Wave 1**
 
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md — Tracer: create expense/income transaction end-to-end (entity, migration, decimal util, real AccountsService.adjustBalance, DTOs, service.create, controller POST, module wiring)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 04-02-PLAN.md — Transactions full CRUD: list/view/update/delete, locked fields (D-04), atomic locked reversal (D-06), cross-tenant isolation suite
+- [ ] 04-03-PLAN.md — Transfers: create/delete with two-account atomic locking (D-01/D-02/D-05), TXN-04 category-exclusion proof, cross-tenant isolation suite
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 04-04-PLAN.md — Integration-level decimal-precision invariant, full regression, security-review checklist close-out
 
 ### Phase 5: Budgets
 
