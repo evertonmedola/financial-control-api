@@ -20,10 +20,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-12)
+See: .planning/PROJECT.md (updated 2026-09-13)
 
 **Core value:** A API funciona localmente, com segurança tratada como requisito central (não como extra), e evolui em etapas incrementais claras até chegar a um deploy AWS completo e auditável.
-**Current focus:** Phase 03 — Categories
+**Current focus:** Phase 4 — Transactions & Transfers
 
 ## Current Position
 
@@ -108,7 +108,7 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 2 (Transactions + Transfers, per research): TypeORM 1.x pessimistic locking API specifics are sparsely documented — validate exact `queryRunner`/`lock` API during Phase 4 planning rather than trusting 0.3.x-era examples.
+- Phase 4 (Transactions + Transfers, per research): TypeORM 1.x pessimistic locking API specifics are sparsely documented — validate exact `queryRunner`/`lock` API during Phase 4 planning rather than trusting 0.3.x-era examples.
 - Phase 8 (AWS Infrastructure): Fargate task sizing has no validated numeric starting point — start conservative and load-test rather than assuming vCPU/memory values from research.
 - Phase 9 (CI/CD): OIDC role scoping needs careful IAM policy design — a recurring failure mode noted in research pitfalls.
 

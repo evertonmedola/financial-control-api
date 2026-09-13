@@ -15,10 +15,10 @@ A API funciona localmente, com segurança tratada como requisito central (não c
 - ✓ Autenticação JWT (registro + login com email/senha) — Phase 1
 - ✓ Isolamento multi-tenant — cada usuário só acessa seus próprios dados — Phase 1
 - ✓ Cadastro de contas (corrente, poupança, carteira, cartão de crédito) com saldo atual — Phase 2
+- ✓ Categorias de receita/despesa customizáveis pelo usuário — Phase 3
 
 ### Active
 
-- [ ] Categorias de receita/despesa customizáveis pelo usuário
 - [ ] Lançamento de transações (receita/despesa) vinculadas a conta e categoria
 - [ ] Transferências entre contas
 - [ ] Orçamento mensal por categoria com cálculo de consumido/restante
@@ -72,6 +72,10 @@ A API funciona localmente, com segurança tratada como requisito central (não c
 | Saldo de cartão de crédito é sempre positivo, representando "amount owed" (D-01) | Nunca sign-flip — todo relatório futuro (Phase 6) lê o saldo com essa convenção fixa desde o início; mudar depois exigiria migração coordenada | ✓ Shipped Phase 2 |
 | `balance` e `type` são imutáveis após a criação da conta (D-02); apenas `AccountsService.adjustBalance()` (stub reservado, sem rota) poderá alterar saldo — via transações na Phase 4 | Garante a invariante de "no drift": único write-path de saldo é a criação até a Phase 4 implementar transações | ✓ Shipped Phase 2 |
 | Soft-delete de contas (`deletedAt`, nunca hard-delete) (D-03) | Contas deletadas continuam referenciáveis pelas transações que a Phase 4 vai vincular a elas | ✓ Shipped Phase 2 |
+| Unicidade de nome+tipo por usuário aplicada via índice único parcial no Postgres, nunca checagem em app-layer (D-03) | Fecha a race condition (TOCTOU) que uma checagem prévia em app-layer deixaria aberta — o Postgres aborta o INSERT inteiro, garantindo exatamente um 201 e um 409 mesmo sob criação concorrente | ✓ Shipped Phase 3 |
+| `type` é permanentemente travado após a criação da categoria (D-02, Prohibition P2) | Consistência com o padrão já estabelecido em Accounts (Phase 2) — nenhuma feature futura pode reinterpretar o significado de uma categoria já em uso | ✓ Shipped Phase 3 |
+| Soft-delete de categorias (`deletedAt`, nunca hard-delete), liberando nome/tipo para reuso via índice parcial (D-01, D-03) | Preserva referências futuras (Phase 4/5 vincularão transações a categorias) e ainda permite recriar um nome antes usado | ✓ Shipped Phase 3 |
+| Code review pós-execução (antes do fechamento de fase) encontrou e corrigiu 1 bug crítico e 3 warnings: `update()` não traduzia unique-violation para 409 (500 não tratado), `:id` malformado gerava 500 em vez de 400, e `name` não era normalizado (trim) antes da checagem de unicidade | Corrigidos e cobertos com testes de regressão dedicados antes de marcar a fase como completa — nenhum gap deixado para a Phase 4 | ✓ Shipped Phase 3 — ver `03-REVIEW.md`/`03-REVIEW-FIX.md` |
 
 ## Evolution
 
@@ -91,4 +95,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-12 after Phase 2*
+*Last updated: 2026-09-13 after Phase 3*
