@@ -138,3 +138,7 @@ Phase 2 (Accounts) is fully closed: all four ROADMAP.md success criteria hold in
 ---
 *Phase: 02-accounts*
 *Completed: 2026-09-12*
+
+## Self-Check: PASSED
+
+`test/accounts.e2e-spec.ts` and this SUMMARY.md confirmed present on disk; all three commits (`5cf23a3`, `e37e19b`, `ff1e06e`) confirmed present in `git log --all`.
