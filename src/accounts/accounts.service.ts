@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { EntityManager, IsNull, Repository } from 'typeorm';
+import { addDecimalStrings } from '../common/decimal.util';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 import { Account } from './entities/account.entity';
@@ -61,18 +62,38 @@ export class AccountsService {
   }
 
   // ARCHITECTURE.md's single write-path for balance mutation — the only
-  // method Phase 4's TransactionsService will ever call to change a
-  // balance. Not exposed via any controller route in this phase; reserved
-  // stub establishes ACCT-04's "no drift" invariant ahead of schedule.
-  // Kept `async` (despite no `await`) so the reserved stub's error surfaces
-  // as a rejected Promise, matching the real Phase 4 signature callers will
-  // depend on.
-  // eslint-disable-next-line @typescript-eslint/require-await
+  // method that may ever change Account.balance. Not exposed via any
+  // controller route directly; TransactionsService (and 04-03's
+  // TransfersService) are its only callers, always passing their own open
+  // QueryRunner transaction's EntityManager so a multi-account mutation
+  // (transfer) commits/rolls back atomically as one unit.
+  //
+  // `manager.findOne` with `lock: { mode: 'pessimistic_write' }` issues a
+  // `SELECT ... FOR UPDATE` under the hood, serializing concurrent
+  // mutations against the same account row (Pitfall 2) — verified against
+  // the installed typeorm@1.1.1 EntityManager/FindOneOptions type
+  // declarations.
+  //
+  // Deliberately no pre-mutation balance-sufficiency check (D-07): expenses
+  // and transfers are never blocked for insufficient balance — checking/
+  // savings/wallet accounts may go negative, matching real-world overdraft.
+  // Also deliberately no credit-limit enforcement (D-08) — there is no
+  // `creditLimit` field on Account (out of ACCT-01's scope). Both absences
+  // are intentional, not oversights.
   async adjustBalance(
-    _userId: string,
-    _id: string,
-    _delta: string,
+    manager: EntityManager,
+    userId: string,
+    id: string,
+    delta: string,
   ): Promise<Account> {
-    throw new Error('not implemented until Phase 4');
+    const account = await manager.findOne(Account, {
+      where: { id, userId, deletedAt: IsNull() },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!account) {
+      throw new NotFoundException();
+    }
+    account.balance = addDecimalStrings(account.balance, delta);
+    return manager.save(account);
   }
 }

@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { EntityManager, IsNull, Repository } from 'typeorm';
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { Account, AccountType } from './entities/account.entity';
@@ -61,10 +61,50 @@ describe('AccountsService', () => {
   });
 
   describe('adjustBalance', () => {
-    it('throws — reserved stub not yet callable until Phase 4 (error case)', async () => {
+    it('locks the account row via pessimistic_write and applies the delta (happy path)', async () => {
+      const findOneMock = jest.fn();
+      const saveMock = jest.fn();
+      const mockManager = {
+        findOne: findOneMock,
+        save: saveMock,
+      } as unknown as EntityManager;
+      const account = {
+        id: 'account-id',
+        userId: 'user-id',
+        balance: '1000.00',
+      } as Account;
+      findOneMock.mockResolvedValue(account);
+      saveMock.mockImplementation((entity) => Promise.resolve(entity));
+
+      const result = await service.adjustBalance(
+        mockManager,
+        'user-id',
+        'account-id',
+        '-100.00',
+      );
+
+      expect(findOneMock.mock.calls[0]).toEqual([
+        Account,
+        {
+          where: { id: 'account-id', userId: 'user-id', deletedAt: IsNull() },
+          lock: { mode: 'pessimistic_write' },
+        },
+      ]);
+      expect(result.balance).toBe('900.00');
+      const [savedAccount] = saveMock.mock.calls[0] as [Account];
+      expect(savedAccount.balance).toBe('900.00');
+    });
+
+    it('throws NotFoundException when the account does not exist or is not owned by userId (error case)', async () => {
+      const findOneMock = jest.fn().mockResolvedValue(null);
+      const mockManager = {
+        findOne: findOneMock,
+        save: jest.fn(),
+      } as unknown as EntityManager;
+
       await expect(
-        service.adjustBalance('user-id', 'account-id', '100.00'),
-      ).rejects.toThrow('not implemented until Phase 4');
+        service.adjustBalance(mockManager, 'user-id', 'account-id', '100.00'),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
