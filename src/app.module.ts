@@ -7,6 +7,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AccountsModule } from './accounts/accounts.module';
 import { AuthModule } from './auth/auth.module';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { validate } from './config/env.validation';
@@ -44,6 +45,7 @@ import { validate } from './config/env.validation';
       }),
     }),
     AuthModule,
+    AccountsModule,
   ],
   providers: [
     // Global guard — covers every endpoint in every module by default;
