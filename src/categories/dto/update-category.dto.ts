@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 /**
@@ -9,7 +10,11 @@ import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
  * 400 automatically — no manual guard code is needed here.
  */
 export class UpdateCategoryDto {
+  // Trimmed before validation (WR-02) — same rationale as CreateCategoryDto:
+  // prevents a whitespace-only name and prevents leading/trailing whitespace
+  // from defeating the D-03 unique index on the literal `name` column.
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(1)
   @MaxLength(100)
