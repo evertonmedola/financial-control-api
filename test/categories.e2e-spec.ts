@@ -319,6 +319,82 @@ describe('Categories (e2e)', () => {
       expect(body?.type).toBe('receita');
     });
 
+    it('PATCH /categories/:id renaming into an existing name+type for the same user returns 409, not 500 (D-03, CR-01 regression)', async () => {
+      const existingResponse = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send({ name: 'Aluguel', type: 'despesa' });
+      expect(existingResponse.status).toBe(201);
+
+      const targetResponse = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send({ name: 'Condominio', type: 'despesa' });
+      const targetId = (targetResponse.body as EnvelopeBody<CategoryData>).data
+        ?.id as string;
+
+      const patchResponse = await request(app.getHttpServer())
+        .patch(`/categories/${targetId}`)
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send({ name: 'Aluguel' });
+
+      expect(patchResponse.status).toBe(409);
+
+      const getResponse = await request(app.getHttpServer())
+        .get(`/categories/${targetId}`)
+        .set('Authorization', `Bearer ${listAccessToken}`);
+      expect((getResponse.body as EnvelopeBody<CategoryData>).data?.name).toBe(
+        'Condominio',
+      );
+    });
+
+    it('a malformed :id on GET/PATCH/DELETE returns 400, not a raw 500 (WR-01 regression)', async () => {
+      const malformedId = 'not-a-uuid';
+
+      const getResponse = await request(app.getHttpServer())
+        .get(`/categories/${malformedId}`)
+        .set('Authorization', `Bearer ${listAccessToken}`);
+      expect(getResponse.status).toBe(400);
+
+      const patchResponse = await request(app.getHttpServer())
+        .patch(`/categories/${malformedId}`)
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send({ name: 'Novo Nome' });
+      expect(patchResponse.status).toBe(400);
+
+      const deleteResponse = await request(app.getHttpServer())
+        .delete(`/categories/${malformedId}`)
+        .set('Authorization', `Bearer ${listAccessToken}`);
+      expect(deleteResponse.status).toBe(400);
+    });
+
+    it('a name with leading/trailing whitespace is trimmed before the D-03 uniqueness check applies (WR-02 regression)', async () => {
+      const createResponse = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send({ name: '  Transporte Publico  ', type: 'despesa' });
+
+      expect(createResponse.status).toBe(201);
+      expect(
+        (createResponse.body as EnvelopeBody<CategoryData>).data?.name,
+      ).toBe('Transporte Publico');
+
+      const duplicateResponse = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send({ name: 'Transporte Publico', type: 'despesa' });
+      expect(duplicateResponse.status).toBe(409);
+    });
+
+    it('a whitespace-only name is rejected with 400, not silently trimmed to an empty string (WR-02 regression)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send({ name: '   ', type: 'despesa' });
+
+      expect(response.status).toBe(400);
+    });
+
     it('DELETE /categories/:id soft-deletes: excluded from GET /categories and GET /categories/:id (404), never removes the row (D-01, Prohibition P3)', async () => {
       const createResponse = await request(app.getHttpServer())
         .post('/categories')
@@ -398,7 +474,8 @@ describe('Categories (e2e)', () => {
       const matching = (
         (listResponse.body as EnvelopeBody<CategoryData[]>).data ?? []
       ).filter(
-        (category) => category.name === body.name && category.type === body.type,
+        (category) =>
+          category.name === body.name && category.type === body.type,
       );
       expect(matching).toHaveLength(1);
       expect(matching[0]?.id).toBe(newId);
