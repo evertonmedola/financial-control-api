@@ -210,4 +210,201 @@ describe('Accounts (e2e)', () => {
       expect(response.status).toBe(400);
     });
   });
+
+  describe('list/view/update/delete', () => {
+    it('GET /accounts on a freshly-registered user with zero accounts returns 200 with an empty array (edge-probe: empty)', async () => {
+      const email = uniqueEmail();
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email, password })
+        .expect(201);
+      const loginResponse = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email, password })
+        .expect(200);
+      const freshToken =
+        (loginResponse.body as EnvelopeBody<AuthData>).data?.accessToken ?? '';
+
+      const response = await request(app.getHttpServer())
+        .get('/accounts')
+        .set('Authorization', `Bearer ${freshToken}`);
+
+      expect(response.status).toBe(200);
+      expect((response.body as EnvelopeBody<AccountData[]>).data).toEqual([]);
+    });
+
+    it('GET /accounts returns accounts ordered by createdAt ascending, stable across repeated calls with no intervening writes (edge-probe: ordering)', async () => {
+      const first = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Ordem 1', type: 'corrente', balance: '1.00' });
+      const second = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Ordem 2', type: 'corrente', balance: '1.00' });
+      const third = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Ordem 3', type: 'corrente', balance: '1.00' });
+      const ids = [first, second, third].map(
+        (r) => (r.body as EnvelopeBody<AccountData>).data?.id,
+      );
+
+      const call1 = await request(app.getHttpServer())
+        .get('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`);
+      const call2 = await request(app.getHttpServer())
+        .get('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`);
+
+      const idsFromList = (body: EnvelopeBody<AccountData[]>) =>
+        (body.data ?? []).map((a) => a.id).filter((id) => ids.includes(id));
+
+      const listIds1 = idsFromList(call1.body as EnvelopeBody<AccountData[]>);
+      const listIds2 = idsFromList(call2.body as EnvelopeBody<AccountData[]>);
+
+      expect(listIds1).toEqual(ids);
+      expect(listIds2).toEqual(ids);
+    });
+
+    it('two accounts with identical name/type/balance for the same user remain two separate rows (edge-probe: adjacency)', async () => {
+      const body = { name: 'Conta Gemea', type: 'corrente', balance: '5.00' };
+
+      const first = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(body);
+      const second = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(body);
+
+      expect(first.status).toBe(201);
+      expect(second.status).toBe(201);
+      const firstId = (first.body as EnvelopeBody<AccountData>).data?.id;
+      const secondId = (second.body as EnvelopeBody<AccountData>).data?.id;
+      expect(firstId).not.toBe(secondId);
+
+      const list = await request(app.getHttpServer())
+        .get('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`);
+      const ids = ((list.body as EnvelopeBody<AccountData[]>).data ?? []).map(
+        (a) => a.id,
+      );
+      expect(ids).toContain(firstId);
+      expect(ids).toContain(secondId);
+    });
+
+    it('PATCH /accounts/:id rejects a body containing `balance` with 400, and the balance stays unchanged (D-02)', async () => {
+      const createResponse = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'Conta Balance Lock',
+          type: 'corrente',
+          balance: '50.00',
+        });
+      const id = (createResponse.body as EnvelopeBody<AccountData>).data?.id;
+
+      const patchResponse = await request(app.getHttpServer())
+        .patch(`/accounts/${id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ balance: '999.00' });
+      expect(patchResponse.status).toBe(400);
+
+      const getResponse = await request(app.getHttpServer())
+        .get(`/accounts/${id}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(
+        (getResponse.body as EnvelopeBody<AccountData>).data?.balance,
+      ).toBe('50.00');
+    });
+
+    it('PATCH /accounts/:id rejects a body containing `type` with 400 (prohibition P2)', async () => {
+      const createResponse = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Conta Type Lock', type: 'corrente', balance: '50.00' });
+      const id = (createResponse.body as EnvelopeBody<AccountData>).data?.id;
+
+      const patchResponse = await request(app.getHttpServer())
+        .patch(`/accounts/${id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ type: 'poupanca' });
+
+      expect(patchResponse.status).toBe(400);
+    });
+
+    it('PATCH /accounts/:id with only `{name}` succeeds 200 and leaves `balance` byte-identical (ACCT-04: no drift)', async () => {
+      const createResponse = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Nome Antigo', type: 'corrente', balance: '77.77' });
+      const id = (createResponse.body as EnvelopeBody<AccountData>).data?.id;
+      const balanceBefore = (createResponse.body as EnvelopeBody<AccountData>)
+        .data?.balance;
+
+      const patchResponse = await request(app.getHttpServer())
+        .patch(`/accounts/${id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Novo Nome' });
+
+      expect(patchResponse.status).toBe(200);
+      const patched = (patchResponse.body as EnvelopeBody<AccountData>).data;
+      expect(patched?.name).toBe('Novo Nome');
+      expect(patched?.balance).toBe(balanceBefore);
+    });
+
+    it('DELETE /accounts/:id soft-deletes: excludes the account from GET /accounts and GET /accounts/:id (404), never removes the row (D-03)', async () => {
+      const createResponse = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'Conta Para Deletar',
+          type: 'corrente',
+          balance: '1.00',
+        });
+      const id = (createResponse.body as EnvelopeBody<AccountData>).data?.id;
+
+      const deleteResponse = await request(app.getHttpServer())
+        .delete(`/accounts/${id}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(deleteResponse.status).toBe(200);
+
+      const getResponse = await request(app.getHttpServer())
+        .get(`/accounts/${id}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(getResponse.status).toBe(404);
+
+      const listResponse = await request(app.getHttpServer())
+        .get('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`);
+      const ids = (
+        (listResponse.body as EnvelopeBody<AccountData[]>).data ?? []
+      ).map((a) => a.id);
+      expect(ids).not.toContain(id);
+    });
+
+    it('a second DELETE /accounts/:id on an already-deleted account returns 404, not a second 200 (edge-probe: idempotency)', async () => {
+      const createResponse = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'Conta Deletar Duas Vezes',
+          type: 'corrente',
+          balance: '1.00',
+        });
+      const id = (createResponse.body as EnvelopeBody<AccountData>).data?.id;
+
+      const firstDelete = await request(app.getHttpServer())
+        .delete(`/accounts/${id}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(firstDelete.status).toBe(200);
+
+      const secondDelete = await request(app.getHttpServer())
+        .delete(`/accounts/${id}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(secondDelete.status).toBe(404);
+    });
+  });
 });
