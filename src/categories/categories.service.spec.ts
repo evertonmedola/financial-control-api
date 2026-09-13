@@ -67,7 +67,10 @@ describe('CategoriesService', () => {
       categoriesRepository.create.mockImplementation(
         (entityLike) => entityLike as Category,
       );
-      categoriesRepository.save.mockRejectedValue({ code: '23505' });
+      categoriesRepository.save.mockRejectedValue({
+        code: '23505',
+        constraint: 'UQ_categories_user_id_name_type',
+      });
 
       await expect(service.create(userId, dto)).rejects.toBeInstanceOf(
         ConflictException,
