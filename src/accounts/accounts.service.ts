@@ -20,11 +20,14 @@ export class AccountsService {
   // method Phase 4's TransactionsService will ever call to change a
   // balance. Not exposed via any controller route in this phase; reserved
   // stub establishes ACCT-04's "no drift" invariant ahead of schedule.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // Kept `async` (despite no `await`) so the reserved stub's error surfaces
+  // as a rejected Promise, matching the real Phase 4 signature callers will
+  // depend on.
+  // eslint-disable-next-line @typescript-eslint/require-await
   async adjustBalance(
-    userId: string,
-    id: string,
-    delta: string,
+    _userId: string,
+    _id: string,
+    _delta: string,
   ): Promise<Account> {
     throw new Error('not implemented until Phase 4');
   }

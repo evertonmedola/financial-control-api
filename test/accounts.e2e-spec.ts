@@ -58,8 +58,8 @@ describe('Accounts (e2e)', () => {
       .post('/auth/login')
       .send({ email, password })
       .expect(200);
-    accessToken = ((loginResponse.body as EnvelopeBody<AuthData>).data
-      ?.accessToken ?? '') as string;
+    accessToken =
+      (loginResponse.body as EnvelopeBody<AuthData>).data?.accessToken ?? '';
   });
 
   afterAll(async () => {
@@ -80,6 +80,134 @@ describe('Accounts (e2e)', () => {
       expect(body?.type).toBe('corrente');
       expect(body?.balance).toBe('1000.00');
       expect(body?.createdAt).toBeDefined();
+    });
+
+    it.each([
+      ['poupanca', '500.00'],
+      ['carteira', '500.00'],
+      ['cartao_credito', '500.00'],
+    ])(
+      'POST /accounts creates a %s account and returns the balance unchanged (D-01/ACCT-03: credit card balance stays a positive "amount owed")',
+      async (type, balance) => {
+        const response = await request(app.getHttpServer())
+          .post('/accounts')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ name: `Conta ${type}`, type, balance });
+
+        expect(response.status).toBe(201);
+        const body = (response.body as EnvelopeBody<AccountData>).data;
+        expect(body?.type).toBe(type);
+        expect(body?.balance).toBe(balance);
+      },
+    );
+
+    it('round-trips a decimal balance exactly, never floating-point-altered (Pitfall 1)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Conta Precisao', type: 'corrente', balance: '1234.56' });
+
+      expect(response.status).toBe(201);
+      const body = (response.body as EnvelopeBody<AccountData>).data;
+      expect(body?.balance).toBe('1234.56');
+      expect(typeof body?.balance).toBe('string');
+    });
+
+    it('rejects a balance with more than 2 decimal places with 400', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Conta Invalida', type: 'corrente', balance: '10.999' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('accepts a balance with exactly 2 decimal places with 201', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Conta Valida', type: 'corrente', balance: '10.99' });
+
+      expect(response.status).toBe(201);
+    });
+
+    it.each(['0.00', '-100.00'])(
+      'accepts a %s balance for a corrente account at creation (CONTEXT.md discretion: accounts can start overdrawn)',
+      async (balance) => {
+        const response = await request(app.getHttpServer())
+          .post('/accounts')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ name: 'Conta Zero Ou Negativa', type: 'corrente', balance });
+
+        expect(response.status).toBe(201);
+      },
+    );
+
+    it('creation is not idempotent — two identical POST /accounts calls create two distinct accounts', async () => {
+      const body = { name: 'Duplicada', type: 'corrente', balance: '10.00' };
+
+      const first = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(body);
+      const second = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(body);
+
+      expect(first.status).toBe(201);
+      expect(second.status).toBe(201);
+      const firstId = (first.body as EnvelopeBody<AccountData>).data?.id;
+      const secondId = (second.body as EnvelopeBody<AccountData>).data?.id;
+      expect(firstId).toBeDefined();
+      expect(secondId).toBeDefined();
+      expect(firstId).not.toBe(secondId);
+    });
+
+    it('two concurrent POST /accounts calls for the same user both succeed with distinct ids (no unique constraint blocks parallel creation)', async () => {
+      const [first, second] = await Promise.all([
+        request(app.getHttpServer())
+          .post('/accounts')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ name: 'Concorrente A', type: 'corrente', balance: '20.00' }),
+        request(app.getHttpServer())
+          .post('/accounts')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ name: 'Concorrente B', type: 'corrente', balance: '20.00' }),
+      ]);
+
+      expect(first.status).toBe(201);
+      expect(second.status).toBe(201);
+      const firstId = (first.body as EnvelopeBody<AccountData>).data?.id;
+      const secondId = (second.body as EnvelopeBody<AccountData>).data?.id;
+      expect(firstId).not.toBe(secondId);
+    });
+
+    it('rejects an invalid/unrecognized type with 400 — never silently coerced to a default (prohibition P1)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'Conta Tipo Invalido',
+          type: 'invalid-type',
+          balance: '10.00',
+        });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('rejects a client-supplied userId field with 400 instead of honoring it (Pitfall 3 / IDOR)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'Conta IDOR',
+          type: 'corrente',
+          balance: '10.00',
+          userId: '11111111-1111-1111-1111-111111111111',
+        });
+
+      expect(response.status).toBe(400);
     });
   });
 });

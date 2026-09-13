@@ -40,18 +40,17 @@ describe('AccountsService', () => {
         balance: '1000.00',
       };
       const createdEntity = { ...dto, userId } as Account;
-      const savedEntity = { id: 'account-id', ...createdEntity } as Account;
+      const savedEntity = { id: 'account-id', ...createdEntity };
 
       accountsRepository.create.mockReturnValue(createdEntity);
       accountsRepository.save.mockResolvedValue(savedEntity);
 
       const result = await service.create(userId, dto);
 
-      expect(accountsRepository.create).toHaveBeenCalledWith({
-        ...dto,
-        userId,
-      });
-      expect(accountsRepository.save).toHaveBeenCalledWith(createdEntity);
+      expect(accountsRepository.create.mock.calls[0]).toEqual([
+        { ...dto, userId },
+      ]);
+      expect(accountsRepository.save.mock.calls[0]).toEqual([createdEntity]);
       expect(result).toBe(savedEntity);
     });
   });
