@@ -17,6 +17,7 @@ actuals:
   tokens: 2200
   tasks: 2
   commits: 1
+  plan_head_before: bc7ff5a088f9f7d2e7e4ad958f363906a92fd645
 
 tech-stack:
   added: []
@@ -86,7 +87,7 @@ status: complete
 1. **Task 1: No-drift invariant test — repeated reads never diverge from stored balance** - `5cf23a3` (test)
 2. **Task 2: Full regression pass + security-review checklist close-out** - no commit (verification-only; full suite was green on first run, no production code or test changes were needed)
 
-**Plan metadata:** pending (docs: complete plan)
+**Plan metadata:** `e37e19b` (docs: complete plan)
 
 ## Files Created/Modified
 - `test/accounts.e2e-spec.ts` - added the three-consecutive-GET no-drift invariant case (ACCT-04)
