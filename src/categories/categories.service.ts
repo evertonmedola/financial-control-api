@@ -1,7 +1,12 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
 import { Category } from './entities/category.entity';
 
 // Postgres unique-violation error code.
@@ -31,6 +36,50 @@ export class CategoriesService {
       }
       throw error;
     }
+  }
+
+  // Explicit stable ordering (oldest-first) — repeated calls with no
+  // intervening writes must return the same order (edge-probe: ordering).
+  async findAll(userId: string): Promise<Category[]> {
+    return this.categoriesRepository.find({
+      where: { userId, deletedAt: IsNull() },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  // 404, never 403, when the category doesn't exist or belongs to another
+  // user — mirrors AccountsService's generic-error philosophy applied to
+  // ownership checks (Pitfall 3, IDOR).
+  async findOne(userId: string, id: string): Promise<Category> {
+    const category = await this.categoriesRepository.findOne({
+      where: { id, userId, deletedAt: IsNull() },
+    });
+    if (!category) {
+      throw new NotFoundException();
+    }
+    return category;
+  }
+
+  // Ownership check (findOne) happens before mutation. `dto` can never
+  // carry `type` — the DTO layer already excludes it (D-02, prohibition
+  // P2).
+  async update(
+    userId: string,
+    id: string,
+    dto: UpdateCategoryDto,
+  ): Promise<Category> {
+    const category = await this.findOne(userId, id);
+    Object.assign(category, dto);
+    return this.categoriesRepository.save(category);
+  }
+
+  // D-01: soft delete only. Never .delete()/.remove() on the repository —
+  // Phase 4's transactions and Phase 5's budgets will carry a foreign key
+  // to categories.id.
+  async remove(userId: string, id: string): Promise<void> {
+    const category = await this.findOne(userId, id);
+    category.deletedAt = new Date();
+    await this.categoriesRepository.save(category);
   }
 
   private isUniqueViolation(error: unknown): boolean {
