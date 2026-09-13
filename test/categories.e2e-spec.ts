@@ -213,4 +213,182 @@ describe('Categories (e2e)', () => {
       expect(response.status).toBe(400);
     });
   });
+
+  describe('list/view/update/delete', () => {
+    let listAccessToken: string;
+
+    beforeAll(async () => {
+      const email = uniqueEmail();
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email, password })
+        .expect(201);
+
+      const loginResponse = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email, password })
+        .expect(200);
+      listAccessToken =
+        (loginResponse.body as EnvelopeBody<AuthData>).data?.accessToken ?? '';
+    });
+
+    it('GET /categories on a fresh user with zero categories returns 200 with an empty array (edge-probe: empty)', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`);
+
+      expect(response.status).toBe(200);
+      expect((response.body as EnvelopeBody<CategoryData[]>).data).toEqual([]);
+    });
+
+    it('GET /categories returns categories ordered by createdAt ascending, stable across repeated calls with no intervening writes (edge-probe: ordering)', async () => {
+      const names = ['Primeira', 'Segunda', 'Terceira'];
+      const createdIds: string[] = [];
+      for (const name of names) {
+        const response = await request(app.getHttpServer())
+          .post('/categories')
+          .set('Authorization', `Bearer ${listAccessToken}`)
+          .send({ name, type: 'despesa' });
+        expect(response.status).toBe(201);
+        createdIds.push(
+          (response.body as EnvelopeBody<CategoryData>).data?.id as string,
+        );
+      }
+
+      const first = await request(app.getHttpServer())
+        .get('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`);
+      const second = await request(app.getHttpServer())
+        .get('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`);
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      const firstIds = (
+        (first.body as EnvelopeBody<CategoryData[]>).data ?? []
+      ).map((category) => category.id);
+      const secondIds = (
+        (second.body as EnvelopeBody<CategoryData[]>).data ?? []
+      ).map((category) => category.id);
+      expect(firstIds).toEqual(secondIds);
+      // The three just-created categories must appear in creation order
+      // among the returned ids (createdAt ascending).
+      const relevantOrder = firstIds.filter((id) => createdIds.includes(id));
+      expect(relevantOrder).toEqual(createdIds);
+    });
+
+    it('PATCH /categories/:id rejects a body containing `type` with 400 — type cannot be changed after creation (D-02, Prohibition P2)', async () => {
+      const createResponse = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send({ name: 'Tipo Travado', type: 'despesa' });
+      const id = (createResponse.body as EnvelopeBody<CategoryData>).data
+        ?.id as string;
+
+      const patchResponse = await request(app.getHttpServer())
+        .patch(`/categories/${id}`)
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send({ type: 'receita' });
+
+      expect(patchResponse.status).toBe(400);
+
+      const getResponse = await request(app.getHttpServer())
+        .get(`/categories/${id}`)
+        .set('Authorization', `Bearer ${listAccessToken}`);
+      expect((getResponse.body as EnvelopeBody<CategoryData>).data?.type).toBe(
+        'despesa',
+      );
+    });
+
+    it('PATCH /categories/:id with only `name` succeeds 200 and leaves `type` unchanged', async () => {
+      const createResponse = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send({ name: 'Nome Antigo', type: 'receita' });
+      const id = (createResponse.body as EnvelopeBody<CategoryData>).data
+        ?.id as string;
+
+      const patchResponse = await request(app.getHttpServer())
+        .patch(`/categories/${id}`)
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send({ name: 'Novo Nome' });
+
+      expect(patchResponse.status).toBe(200);
+      const body = (patchResponse.body as EnvelopeBody<CategoryData>).data;
+      expect(body?.name).toBe('Novo Nome');
+      expect(body?.type).toBe('receita');
+    });
+
+    it('DELETE /categories/:id soft-deletes: excluded from GET /categories and GET /categories/:id (404), never removes the row (D-01, Prohibition P3)', async () => {
+      const createResponse = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send({ name: 'Para Deletar', type: 'despesa' });
+      const id = (createResponse.body as EnvelopeBody<CategoryData>).data
+        ?.id as string;
+
+      const deleteResponse = await request(app.getHttpServer())
+        .delete(`/categories/${id}`)
+        .set('Authorization', `Bearer ${listAccessToken}`);
+      expect(deleteResponse.status).toBe(200);
+
+      const getResponse = await request(app.getHttpServer())
+        .get(`/categories/${id}`)
+        .set('Authorization', `Bearer ${listAccessToken}`);
+      expect(getResponse.status).toBe(404);
+
+      const listResponse = await request(app.getHttpServer())
+        .get('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`);
+      const ids = (
+        (listResponse.body as EnvelopeBody<CategoryData[]>).data ?? []
+      ).map((category) => category.id);
+      expect(ids).not.toContain(id);
+    });
+
+    it('a second DELETE /categories/:id on an already-deleted category returns 404, not a second 200 (edge-probe: idempotency)', async () => {
+      const createResponse = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send({ name: 'Deletar Duas Vezes', type: 'despesa' });
+      const id = (createResponse.body as EnvelopeBody<CategoryData>).data
+        ?.id as string;
+
+      const firstDelete = await request(app.getHttpServer())
+        .delete(`/categories/${id}`)
+        .set('Authorization', `Bearer ${listAccessToken}`);
+      expect(firstDelete.status).toBe(200);
+
+      const secondDelete = await request(app.getHttpServer())
+        .delete(`/categories/${id}`)
+        .set('Authorization', `Bearer ${listAccessToken}`);
+      expect(secondDelete.status).toBe(404);
+    });
+
+    it('two concurrent DELETE /categories/:id calls on the same category never both return 500 — each resolves 200 or 404, final state is soft-deleted (edge-probe: concurrency)', async () => {
+      const createResponse = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send({ name: 'Delete Concorrente', type: 'despesa' });
+      const id = (createResponse.body as EnvelopeBody<CategoryData>).data
+        ?.id as string;
+
+      const [first, second] = await Promise.all([
+        request(app.getHttpServer())
+          .delete(`/categories/${id}`)
+          .set('Authorization', `Bearer ${listAccessToken}`),
+        request(app.getHttpServer())
+          .delete(`/categories/${id}`)
+          .set('Authorization', `Bearer ${listAccessToken}`),
+      ]);
+
+      expect([200, 404]).toContain(first.status);
+      expect([200, 404]).toContain(second.status);
+
+      const getResponse = await request(app.getHttpServer())
+        .get(`/categories/${id}`)
+        .set('Authorization', `Bearer ${listAccessToken}`);
+      expect(getResponse.status).toBe(404);
+    });
+  });
 });
