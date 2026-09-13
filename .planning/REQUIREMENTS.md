@@ -16,10 +16,10 @@ Requirements for initial release (API local completa, containerizada). Deploy AW
 
 ### Accounts
 
-- [ ] **ACCT-01**: User can create an account with type (corrente, poupança, carteira, cartão de crédito) and initial balance
-- [ ] **ACCT-02**: User can list, view, update, and delete their own accounts
-- [ ] **ACCT-03**: Credit card accounts behave as liabilities (balance represents amount owed, not amount held)
-- [ ] **ACCT-04**: Account balance reflects the sum of its transactions (income, expense, and transfer legs) consistently — no drift between stored and derived balance
+- [x] **ACCT-01**: User can create an account with type (corrente, poupança, carteira, cartão de crédito) and initial balance
+- [x] **ACCT-02**: User can list, view, update, and delete their own accounts
+- [x] **ACCT-03**: Credit card accounts behave as liabilities (balance represents amount owed, not amount held)
+- [x] **ACCT-04**: Account balance reflects the sum of its transactions (income, expense, and transfer legs) consistently — no drift between stored and derived balance
 
 ### Categories
 
@@ -93,10 +93,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-02 | Phase 1 | Complete |
 | AUTH-03 | Phase 1 | Complete |
 | AUTH-04 | Phase 1 | Complete |
-| ACCT-01 | Phase 2 | Pending |
-| ACCT-02 | Phase 2 | Pending |
-| ACCT-03 | Phase 2 | Pending |
-| ACCT-04 | Phase 2 | Pending |
+| ACCT-01 | Phase 2 | Complete |
+| ACCT-02 | Phase 2 | Complete |
+| ACCT-03 | Phase 2 | Complete |
+| ACCT-04 | Phase 2 | Complete |
 | CAT-01 | Phase 3 | Pending |
 | CAT-02 | Phase 3 | Pending |
 | TXN-01 | Phase 4 | Pending |

@@ -71,7 +71,7 @@ Plans:
   3. A credit card account's balance represents amount owed (a liability), not amount held.
   4. An account's balance always equals the sum of its transaction history, with no drift between the stored and derived value.
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans executed
 
 Plans:
 **Wave 1**
@@ -84,7 +84,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 02-03-PLAN.md — No-drift invariant test, full regression, security-review checklist close-out
+- [x] 02-03-PLAN.md — No-drift invariant test, full regression, security-review checklist close-out
 
 ### Phase 3: Categories
 
@@ -220,7 +220,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Authentication & Multi-Tenant Foundation | 5/5 | Complete    | 2026-09-12 |
-| 2. Accounts | 2/3 | In Progress|  |
+| 2. Accounts | 3/3 | In Progress|  |
 | 3. Categories | 0/TBD | Not started | - |
 | 4. Transactions & Transfers | 0/TBD | Not started | - |
 | 5. Budgets | 0/TBD | Not started | - |
