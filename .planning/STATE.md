@@ -4,16 +4,16 @@ current_phase: 03
 current_phase_name: Categories
 status: executing
 stopped_at: Phase 3 context gathered
-last_updated: "2026-09-13T16:55:14.612Z"
+last_updated: "2026-09-13T17:41:00.679Z"
 last_activity: 2026-09-13
 last_activity_desc: Phase 03 execution started
-state_head: 613939a20f81ab23548e899be63a5ee2daae80bb
+state_head: 5ee1a34010231aa55c42c784f2ae9cf8ef387d2f
 progress:
   total_phases: 9
-  completed_phases: 1
+  completed_phases: 0
   total_plans: 11
-  completed_plans: 8
-  percent: 11
+  completed_plans: 9
+  percent: 0
 ---
 
 # Project State
@@ -32,7 +32,7 @@ Plan: 1 of 3
 Status: Executing Phase 03
 Last activity: 2026-09-13 — Phase 03 execution started
 
-Progress: [████████████████████] 8/8 plans ([█░░░░░░░░░] 11%)
+Progress: [████████████████████] 8/8 plans ([░░░░░░░░░░] 0%)
 
 ## Performance Metrics
 
@@ -94,6 +94,8 @@ Recent decisions affecting current work:
 - [Phase 02]: [Phase 02-02]: UpdateAccountDto narrowed to name-only (no type field), unlike 02-PATTERNS.md's draft — D-01's balance-sign-by-type meaning would be silently misrepresented by a post-creation type change (prohibition P2)
 - [Phase 02]: [Phase 02-02]: DELETE /accounts/:id returns 200 + {} mirroring AuthController.logout()'s empty-envelope convention, not a bare 204
 - [Phase 02]: [Phase 02-03]: security-review Skill invocation couldn't run (no origin remote for git diff) — checklist applied manually against 02-01/02-02's STRIDE registers instead; no new gaps found
+- [Phase 03]: [Phase 03]: [Phase 03-01]: D-03 uniqueness enforced at the database level via a partial unique index, not application-layer validation — Concurrent duplicate creates resolve deterministically (one 201, one 409, never both, never a 500) — service only translates the resulting Postgres 23505 error into a 409, closing any TOCTOU race
+- [Phase 03]: [Phase 03]: [Phase 03-01]: Removed GET /categories list-count cross-checks from 03-01's e2e tests (Rule 3 deviation) — That endpoint is CAT-02 scope owned by 03-02-PLAN.md and doesn't exist yet — the 201-then-409 status sequence alone is sufficient proof of non-duplication, since a Postgres unique-violation aborts the INSERT entirely
 
 ### Pending Todos
 
