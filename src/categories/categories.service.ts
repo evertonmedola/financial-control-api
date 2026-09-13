@@ -92,12 +92,18 @@ export class CategoriesService {
     }
   }
 
+  // WR-03: check the specific constraint name, not just the 23505 code —
+  // today categories has exactly one unique constraint, but matching on code
+  // alone would silently mis-report any future unrelated unique-violation on
+  // this table as "duplicate name for this type".
   private isUniqueViolation(error: unknown): boolean {
     return (
       typeof error === 'object' &&
       error !== null &&
       'code' in error &&
-      (error as { code?: string }).code === POSTGRES_UNIQUE_VIOLATION
+      (error as { code?: string }).code === POSTGRES_UNIQUE_VIOLATION &&
+      (error as { constraint?: string }).constraint ===
+        'UQ_categories_user_id_name_type'
     );
   }
 }
