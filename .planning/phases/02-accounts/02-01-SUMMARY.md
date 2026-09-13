@@ -171,3 +171,7 @@ None — Docker Desktop and the local Postgres container were started by this se
 ---
 *Phase: 02-accounts*
 *Completed: 2026-09-12*
+
+## Self-Check: PASSED
+
+All 9 created/modified source files and this SUMMARY.md confirmed present on disk; all 3 commits (`6e6c86b`, `7cc8d24`, `49392ee`) confirmed present in `git log --all`.
