@@ -14,10 +14,10 @@ A API funciona localmente, com segurança tratada como requisito central (não c
 
 - ✓ Autenticação JWT (registro + login com email/senha) — Phase 1
 - ✓ Isolamento multi-tenant — cada usuário só acessa seus próprios dados — Phase 1
+- ✓ Cadastro de contas (corrente, poupança, carteira, cartão de crédito) com saldo atual — Phase 2
 
 ### Active
 
-- [ ] Cadastro de contas (corrente, poupança, carteira, cartão de crédito) com saldo atual
 - [ ] Categorias de receita/despesa customizáveis pelo usuário
 - [ ] Lançamento de transações (receita/despesa) vinculadas a conta e categoria
 - [ ] Transferências entre contas
@@ -69,6 +69,9 @@ A API funciona localmente, com segurança tratada como requisito central (não c
 | Refresh token: rotação + detecção de reuso por família | Um token roubado usado após rotação revoga toda a família, forçando novo login — limita o raio de impacto de um token vazado (D-04) | ✓ Shipped Phase 1 — atomic conditional `UPDATE` (hardened post-execution via code review, closing a TOCTOU race in the original read-then-write implementation) |
 | Rate limiting em `/auth/login` e `/auth/register` via `@nestjs/throttler` (D-06) | Mitiga brute-force e criação em massa de contas; aplicado nos dois endpoints, não só login | ✓ Shipped Phase 1 |
 | `userId`-scoping via `@CurrentUser()` decorator, nunca de input do cliente | Estabelece o padrão de isolamento multi-tenant que toda fase futura reutiliza sem alteração | ✓ Shipped Phase 1 — provado sob suíte adversarial de dois usuários (`cross-tenant.e2e-spec.ts`) |
+| Saldo de cartão de crédito é sempre positivo, representando "amount owed" (D-01) | Nunca sign-flip — todo relatório futuro (Phase 6) lê o saldo com essa convenção fixa desde o início; mudar depois exigiria migração coordenada | ✓ Shipped Phase 2 |
+| `balance` e `type` são imutáveis após a criação da conta (D-02); apenas `AccountsService.adjustBalance()` (stub reservado, sem rota) poderá alterar saldo — via transações na Phase 4 | Garante a invariante de "no drift": único write-path de saldo é a criação até a Phase 4 implementar transações | ✓ Shipped Phase 2 |
+| Soft-delete de contas (`deletedAt`, nunca hard-delete) (D-03) | Contas deletadas continuam referenciáveis pelas transações que a Phase 4 vai vincular a elas | ✓ Shipped Phase 2 |
 
 ## Evolution
 
@@ -88,4 +91,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-12 after Phase 1*
+*Last updated: 2026-09-12 after Phase 2*
