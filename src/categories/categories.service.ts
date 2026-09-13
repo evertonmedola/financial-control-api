@@ -25,17 +25,7 @@ export class CategoriesService {
   // any app-layer TOCTOU race a pre-check-then-insert approach would have.
   async create(userId: string, dto: CreateCategoryDto): Promise<Category> {
     const category = this.categoriesRepository.create({ ...dto, userId });
-
-    try {
-      return await this.categoriesRepository.save(category);
-    } catch (error) {
-      if (this.isUniqueViolation(error)) {
-        throw new ConflictException(
-          'já existe uma categoria com esse nome para este tipo',
-        );
-      }
-      throw error;
-    }
+    return this.saveOrThrowConflict(category);
   }
 
   // Explicit stable ordering (oldest-first) — repeated calls with no
@@ -62,7 +52,11 @@ export class CategoriesService {
 
   // Ownership check (findOne) happens before mutation. `dto` can never
   // carry `type` — the DTO layer already excludes it (D-02, prohibition
-  // P2).
+  // P2). Renaming into a collision with another (name, type) pair for the
+  // same user hits the same UQ_categories_user_id_name_type index `create()`
+  // guards against, so this goes through the same conflict-translating
+  // helper (CR-01 fix — previously this raw `save()` let a Postgres
+  // QueryFailedError surface as an uncaught 500 instead of 409).
   async update(
     userId: string,
     id: string,
@@ -70,7 +64,7 @@ export class CategoriesService {
   ): Promise<Category> {
     const category = await this.findOne(userId, id);
     Object.assign(category, dto);
-    return this.categoriesRepository.save(category);
+    return this.saveOrThrowConflict(category);
   }
 
   // D-01: soft delete only. Never .delete()/.remove() on the repository —
@@ -80,6 +74,22 @@ export class CategoriesService {
     const category = await this.findOne(userId, id);
     category.deletedAt = new Date();
     await this.categoriesRepository.save(category);
+  }
+
+  // Shared by create() and update() (CR-01): both write paths hit the same
+  // UQ_categories_user_id_name_type partial unique index, so both need the
+  // identical Postgres-error-to-409 translation.
+  private async saveOrThrowConflict(category: Category): Promise<Category> {
+    try {
+      return await this.categoriesRepository.save(category);
+    } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        throw new ConflictException(
+          'já existe uma categoria com esse nome para este tipo',
+        );
+      }
+      throw error;
+    }
   }
 
   private isUniqueViolation(error: unknown): boolean {
