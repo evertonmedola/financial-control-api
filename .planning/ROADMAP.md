@@ -97,7 +97,7 @@ Plans:
   1. A user can create a custom category tagged as either receita (income) or despesa (expense).
   2. A user can list, view, update, and delete only their own categories.
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans executed
 
 Plans:
 **Wave 1**
@@ -110,7 +110,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 03-03-PLAN.md — Partial-unique-index invariant, full regression, security-review checklist close-out
+- [x] 03-03-PLAN.md — Partial-unique-index invariant, full regression, security-review checklist close-out
 
 ### Phase 4: Transactions & Transfers
 
@@ -230,7 +230,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 |-------|----------------|--------|-----------|
 | 1. Authentication & Multi-Tenant Foundation | 5/5 | Complete    | 2026-09-12 |
 | 2. Accounts | 3/3 | Complete    | 2026-09-12 |
-| 3. Categories | 2/3 | In Progress|  |
+| 3. Categories | 3/3 | In Progress|  |
 | 4. Transactions & Transfers | 0/TBD | Not started | - |
 | 5. Budgets | 0/TBD | Not started | - |
 | 6. Reports | 0/TBD | Not started | - |
