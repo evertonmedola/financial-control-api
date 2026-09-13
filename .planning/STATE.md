@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Accounts
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-09-13T02:14:18.749Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-09-13T02:25:03.289Z"
 last_activity: 2026-09-12
 last_activity_desc: Phase 02 execution started
-state_head: 7cc8d24c26d4c08783964fc8fed0687ad24ffd83
+state_head: a3785e4ac3952682242a01965564237c25fb5a33
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-09-12)
 ## Current Position
 
 Phase: 02 (Accounts) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-09-12 — Phase 02 execution started
 
@@ -64,6 +64,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P04 | 35min | 2 tasks | 4 files |
 | Phase 01 P05 | 15min | 2 tasks | 1 files |
 | Phase 02 P01 | 30min | 2 tasks | 10 files |
+| Phase 02 P02 | 40min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Post-execution code review (before phase close-out) found and fixed 3 critical bugs the plan-time work missed: migrations used `uuid_generate_v4()` with no `uuid-ossp` extension installed (fails on any fresh DB — switched to native `gen_random_uuid()`), `ms`/`@types/ms` were undeclared phantom transitive dependencies, and `AuthService.refresh()` had a TOCTOU race allowing concurrent reuse of the same refresh token (closed via a single atomic conditional `UPDATE`). All 5 warning-level findings also fixed. See 01-REVIEW.md/01-REVIEW-FIX.md.
 - [Phase 02]: [Phase 02-01]: AccountsService.adjustBalance() is intentionally unrouted this phase (throws 'not implemented until Phase 4') — establishes the single write-path signature ARCHITECTURE.md requires before Phase 4's TransactionsService exists to call it
 - [Phase 02]: [Phase 02-01]: JwtAuthGuard moved to controller level (not per-route as in AuthController) since every Accounts route requires auth and there is no public register/login-equivalent in this module
+- [Phase 02]: [Phase 02-02]: UpdateAccountDto narrowed to name-only (no type field), unlike 02-PATTERNS.md's draft — D-01's balance-sign-by-type meaning would be silently misrepresented by a post-creation type change (prohibition P2)
+- [Phase 02]: [Phase 02-02]: DELETE /accounts/:id returns 200 + {} mirroring AuthController.logout()'s empty-envelope convention, not a bare 204
 
 ### Pending Todos
 
@@ -109,6 +112,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-13T02:14:18.684Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-09-13T02:25:03.220Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
