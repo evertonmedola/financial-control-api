@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   UseGuards,
@@ -43,7 +44,7 @@ export class CategoriesController {
   @Get(':id')
   async findOne(
     @CurrentUser() userId: string,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<CategoryResponseDto> {
     const category = await this.categoriesService.findOne(userId, id);
     return CategoryResponseDto.fromEntity(category);
@@ -52,7 +53,7 @@ export class CategoriesController {
   @Patch(':id')
   async update(
     @CurrentUser() userId: string,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCategoryDto,
   ): Promise<CategoryResponseDto> {
     const category = await this.categoriesService.update(userId, id, dto);
@@ -65,7 +66,7 @@ export class CategoriesController {
   @Delete(':id')
   async remove(
     @CurrentUser() userId: string,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<Record<string, never>> {
     await this.categoriesService.remove(userId, id);
     return {};
