@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 2
+current_phase: 02
 current_phase_name: Accounts
-status: planning
-stopped_at: Phase 2 context gathered
-last_updated: "2026-09-12T14:53:54.058Z"
+status: executing
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-09-13T02:14:18.749Z"
 last_activity: 2026-09-12
-last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 6da2128c2e67194294fa0853286ae89c5863faf3
+last_activity_desc: Phase 02 execution started
+state_head: 7cc8d24c26d4c08783964fc8fed0687ad24ffd83
 progress:
   total_phases: 9
-  completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
-  percent: 11
+  completed_phases: 0
+  total_plans: 8
+  completed_plans: 6
+  percent: 0
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-12)
 
 **Core value:** A API funciona localmente, com segurança tratada como requisito central (não como extra), e evolui em etapas incrementais claras até chegar a um deploy AWS completo e auditável.
-**Current focus:** Phase 2 — Accounts (Phase 1 complete)
+**Current focus:** Phase 02 — Accounts
 
 ## Current Position
 
-Phase: 2 — Accounts
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-09-12 — Phase 01 complete, transitioned to Phase 2
+Phase: 02 (Accounts) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-09-12 — Phase 02 execution started
 
-Progress: [█░░░░░░░░░] 11%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [█░░░░░░░░░] 11%
 | Phase 01 P03 | 20min | 2 tasks | 9 files |
 | Phase 01 P04 | 35min | 2 tasks | 4 files |
 | Phase 01 P05 | 15min | 2 tasks | 1 files |
+| Phase 02 P01 | 30min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,8 @@ Recent decisions affecting current work:
 - [Phase 01]: [Phase 01-05]: Client-supplied-override sweep tests assert 400 (not silently-ignored 200) for POST endpoints, since global forbidNonWhitelisted:true rejects unexpected DTO fields — a stronger proof of no-override than checking the field was merely ignored
 - [Phase 01]: [Phase 01-05]: Reuse-detection cross-tenant test asserts refresh_tokens table state directly (A's full family revoked, B's sibling row unrevoked) rather than relying solely on HTTP response codes
 - [Phase 01]: Post-execution code review (before phase close-out) found and fixed 3 critical bugs the plan-time work missed: migrations used `uuid_generate_v4()` with no `uuid-ossp` extension installed (fails on any fresh DB — switched to native `gen_random_uuid()`), `ms`/`@types/ms` were undeclared phantom transitive dependencies, and `AuthService.refresh()` had a TOCTOU race allowing concurrent reuse of the same refresh token (closed via a single atomic conditional `UPDATE`). All 5 warning-level findings also fixed. See 01-REVIEW.md/01-REVIEW-FIX.md.
+- [Phase 02]: [Phase 02-01]: AccountsService.adjustBalance() is intentionally unrouted this phase (throws 'not implemented until Phase 4') — establishes the single write-path signature ARCHITECTURE.md requires before Phase 4's TransactionsService exists to call it
+- [Phase 02]: [Phase 02-01]: JwtAuthGuard moved to controller level (not per-route as in AuthController) since every Accounts route requires auth and there is no public register/login-equivalent in this module
 
 ### Pending Todos
 
@@ -106,6 +109,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-12T14:53:54.000Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-accounts/02-CONTEXT.md
+Last session: 2026-09-13T02:14:18.684Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None

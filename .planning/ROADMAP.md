@@ -71,12 +71,12 @@ Plans:
   3. A credit card account's balance represents amount owed (a liability), not amount held.
   4. An account's balance always equals the sum of its transaction history, with no drift between the stored and derived value.
 
-**Plans**: 3 plans
+**Plans**: 1/3 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Tracer: create account end-to-end (entity, migration, DTOs, service.create, controller POST, module wiring)
+- [x] 02-01-PLAN.md — Tracer: create account end-to-end (entity, migration, DTOs, service.create, controller POST, module wiring)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -220,7 +220,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Authentication & Multi-Tenant Foundation | 5/5 | Complete    | 2026-09-12 |
-| 2. Accounts | 0/TBD | Not started | - |
+| 2. Accounts | 1/3 | In Progress|  |
 | 3. Categories | 0/TBD | Not started | - |
 | 4. Transactions & Transfers | 0/TBD | Not started | - |
 | 5. Budgets | 0/TBD | Not started | - |
