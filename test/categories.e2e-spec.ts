@@ -365,6 +365,45 @@ describe('Categories (e2e)', () => {
       expect(secondDelete.status).toBe(404);
     });
 
+    it('recreating a category with the same name+type as a previously soft-deleted category succeeds with a new id (D-03 partial index)', async () => {
+      const body = { name: 'Recorrente', type: 'despesa' };
+
+      const createResponse = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send(body);
+      expect(createResponse.status).toBe(201);
+      const originalId = (createResponse.body as EnvelopeBody<CategoryData>)
+        .data?.id as string;
+
+      const deleteResponse = await request(app.getHttpServer())
+        .delete(`/categories/${originalId}`)
+        .set('Authorization', `Bearer ${listAccessToken}`);
+      expect(deleteResponse.status).toBe(200);
+
+      const recreateResponse = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`)
+        .send(body);
+      expect(recreateResponse.status).toBe(201);
+      const newId = (recreateResponse.body as EnvelopeBody<CategoryData>).data
+        ?.id as string;
+      expect(newId).toBeDefined();
+      expect(newId).not.toBe(originalId);
+
+      const listResponse = await request(app.getHttpServer())
+        .get('/categories')
+        .set('Authorization', `Bearer ${listAccessToken}`);
+      expect(listResponse.status).toBe(200);
+      const matching = (
+        (listResponse.body as EnvelopeBody<CategoryData[]>).data ?? []
+      ).filter(
+        (category) => category.name === body.name && category.type === body.type,
+      );
+      expect(matching).toHaveLength(1);
+      expect(matching[0]?.id).toBe(newId);
+    });
+
     it('two concurrent DELETE /categories/:id calls on the same category never both return 500 — each resolves 200 or 404, final state is soft-deleted (edge-probe: concurrency)', async () => {
       const createResponse = await request(app.getHttpServer())
         .post('/categories')
