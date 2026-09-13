@@ -23,8 +23,8 @@ Requirements for initial release (API local completa, containerizada). Deploy AW
 
 ### Categories
 
-- [ ] **CAT-01**: User can create custom categories with a type (receita or despesa)
-- [ ] **CAT-02**: User can list, view, update, and delete their own categories
+- [x] **CAT-01**: User can create custom categories with a type (receita or despesa)
+- [x] **CAT-02**: User can list, view, update, and delete their own categories
 
 ### Transactions
 
@@ -97,8 +97,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ACCT-02 | Phase 2 | Complete |
 | ACCT-03 | Phase 2 | Complete |
 | ACCT-04 | Phase 2 | Complete |
-| CAT-01 | Phase 3 | Pending |
-| CAT-02 | Phase 3 | Pending |
+| CAT-01 | Phase 3 | Complete |
+| CAT-02 | Phase 3 | Complete |
 | TXN-01 | Phase 4 | Pending |
 | TXN-02 | Phase 4 | Pending |
 | TXN-03 | Phase 4 | Pending |

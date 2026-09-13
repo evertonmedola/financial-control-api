@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Categories
 status: executing
-stopped_at: Phase 3 context gathered
-last_updated: "2026-09-13T17:41:00.679Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-09-13T17:54:02.234Z"
 last_activity: 2026-09-13
 last_activity_desc: Phase 03 execution started
-state_head: 5ee1a34010231aa55c42c784f2ae9cf8ef387d2f
+state_head: 2dd5b3691771045a4b048d266a92a644000a577e
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 11
-  completed_plans: 9
+  completed_plans: 10
   percent: 0
 ---
 
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-09-12)
 ## Current Position
 
 Phase: 03 (Categories) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 03
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-09-13 — Phase 03 execution started
 
 Progress: [████████████████████] 8/8 plans ([░░░░░░░░░░] 0%)
@@ -67,6 +67,7 @@ Progress: [████████████████████] 8/8 pla
 | Phase 02 P01 | 30min | 2 tasks | 10 files |
 | Phase 02 P02 | 40min | 2 tasks | 6 files |
 | Phase 02 P03 | 20min | 2 tasks | 1 files |
+| Phase 03 P03-02 | 12min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,8 @@ Recent decisions affecting current work:
 - [Phase 02]: [Phase 02-03]: security-review Skill invocation couldn't run (no origin remote for git diff) — checklist applied manually against 02-01/02-02's STRIDE registers instead; no new gaps found
 - [Phase 03]: [Phase 03]: [Phase 03-01]: D-03 uniqueness enforced at the database level via a partial unique index, not application-layer validation — Concurrent duplicate creates resolve deterministically (one 201, one 409, never both, never a 500) — service only translates the resulting Postgres 23505 error into a 409, closing any TOCTOU race
 - [Phase 03]: [Phase 03]: [Phase 03-01]: Removed GET /categories list-count cross-checks from 03-01's e2e tests (Rule 3 deviation) — That endpoint is CAT-02 scope owned by 03-02-PLAN.md and doesn't exist yet — the 201-then-409 status sequence alone is sufficient proof of non-duplication, since a Postgres unique-violation aborts the INSERT entirely
+- [Phase 03]: [Phase 03-02]: UpdateCategoryDto narrowed to name-only (no type field) — D-02's type-locked-after-creation rule enforced entirely via DTO-layer omission plus global forbidNonWhitelisted:true, mirroring UpdateAccountDto exactly
+- [Phase 03]: [Phase 03-02]: DELETE /categories/:id returns 200 + {} (not 204), mirroring AccountsController.remove()'s established empty-envelope convention for response-shape consistency across domain modules
 
 ### Pending Todos
 
@@ -117,6 +120,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-13T16:19:36.694Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-categories/03-CONTEXT.md
+Last session: 2026-09-13T17:54:02.156Z
+Stopped at: Completed 03-02-PLAN.md
+Resume file: None
