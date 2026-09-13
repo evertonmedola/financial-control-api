@@ -97,12 +97,12 @@ Plans:
   1. A user can create a custom category tagged as either receita (income) or despesa (expense).
   2. A user can list, view, update, and delete only their own categories.
 
-**Plans**: 3 plans
+**Plans**: 1/3 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Tracer: create category end-to-end (entity, migration w/ D-03 partial unique index, DTOs, service.create, controller POST, module wiring)
+- [x] 03-01-PLAN.md — Tracer: create category end-to-end (entity, migration w/ D-03 partial unique index, DTOs, service.create, controller POST, module wiring)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -230,7 +230,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 |-------|----------------|--------|-----------|
 | 1. Authentication & Multi-Tenant Foundation | 5/5 | Complete    | 2026-09-12 |
 | 2. Accounts | 3/3 | Complete    | 2026-09-12 |
-| 3. Categories | 0/3 | Not started | - |
+| 3. Categories | 1/3 | In Progress|  |
 | 4. Transactions & Transfers | 0/TBD | Not started | - |
 | 5. Budgets | 0/TBD | Not started | - |
 | 6. Reports | 0/TBD | Not started | - |
