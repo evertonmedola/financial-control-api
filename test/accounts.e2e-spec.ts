@@ -385,6 +385,29 @@ describe('Accounts (e2e)', () => {
       expect(ids).not.toContain(id);
     });
 
+    it('three consecutive GET /accounts/:id calls with no intervening writes return the exact same balance string, never a JS number (ACCT-04: no drift)', async () => {
+      const createResponse = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'Conta Sem Drift',
+          type: 'corrente',
+          balance: '2500.75',
+        });
+      const id = (createResponse.body as EnvelopeBody<AccountData>).data?.id;
+
+      for (let i = 0; i < 3; i += 1) {
+        const getResponse = await request(app.getHttpServer())
+          .get(`/accounts/${id}`)
+          .set('Authorization', `Bearer ${accessToken}`);
+
+        expect(getResponse.status).toBe(200);
+        const body = (getResponse.body as EnvelopeBody<AccountData>).data;
+        expect(body?.balance).toBe('2500.75');
+        expect(typeof body?.balance).toBe('string');
+      }
+    });
+
     it('a second DELETE /accounts/:id on an already-deleted account returns 404, not a second 200 (edge-probe: idempotency)', async () => {
       const createResponse = await request(app.getHttpServer())
         .post('/accounts')
