@@ -21,6 +21,7 @@ describe('AccountsService', () => {
             save: jest.fn(),
             find: jest.fn(),
             findOne: jest.fn(),
+            update: jest.fn(),
             delete: jest.fn(),
             remove: jest.fn(),
           },
@@ -131,23 +132,95 @@ describe('AccountsService', () => {
   });
 
   describe('remove', () => {
-    it('sets deletedAt and calls .save() — never a hard-delete repository method (D-03)', async () => {
+    it('sets deletedAt via a scoped partial update — never a hard-delete repository method (D-03), never a full-entity save (WR-02)', async () => {
       const account = {
         id: 'account-id',
         userId: 'user-id',
         deletedAt: null,
       } as Account;
       accountsRepository.findOne.mockResolvedValue(account);
-      accountsRepository.save.mockImplementation((entity) =>
-        Promise.resolve(entity as Account),
-      );
+      accountsRepository.update.mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      });
 
       await service.remove('user-id', 'account-id');
 
-      expect(account.deletedAt).toBeInstanceOf(Date);
-      expect(accountsRepository.save.mock.calls[0]).toEqual([account]);
+      expect(accountsRepository.update.mock.calls[0]).toEqual([
+        { id: 'account-id', userId: 'user-id', deletedAt: IsNull() },
+        { deletedAt: expect.any(Date) as Date },
+      ]);
+      expect(accountsRepository.save.mock.calls.length).toBe(0);
       expect(accountsRepository.delete.mock.calls.length).toBe(0);
       expect(accountsRepository.remove.mock.calls.length).toBe(0);
+    });
+
+    it('throws NotFoundException when the row was concurrently soft-deleted between the ownership check and the write (WR-02 race)', async () => {
+      const account = {
+        id: 'account-id',
+        userId: 'user-id',
+        deletedAt: null,
+      } as Account;
+      accountsRepository.findOne.mockResolvedValue(account);
+      accountsRepository.update.mockResolvedValue({
+        affected: 0,
+        raw: [],
+        generatedMaps: [],
+      });
+
+      await expect(
+        service.remove('user-id', 'account-id'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('update', () => {
+    it('applies a scoped partial update — never a full-entity save (WR-02)', async () => {
+      const account = {
+        id: 'account-id',
+        userId: 'user-id',
+        deletedAt: null,
+        name: 'Old name',
+      } as Account;
+      const updated = { ...account, name: 'New name' };
+      accountsRepository.findOne
+        .mockResolvedValueOnce(account)
+        .mockResolvedValueOnce(updated);
+      accountsRepository.update.mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      });
+
+      const result = await service.update('user-id', 'account-id', {
+        name: 'New name',
+      });
+
+      expect(accountsRepository.update.mock.calls[0]).toEqual([
+        { id: 'account-id', userId: 'user-id', deletedAt: IsNull() },
+        { name: 'New name' },
+      ]);
+      expect(accountsRepository.save.mock.calls.length).toBe(0);
+      expect(result).toBe(updated);
+    });
+
+    it('throws NotFoundException when the row was concurrently soft-deleted between the ownership check and the write (WR-02 race)', async () => {
+      const account = {
+        id: 'account-id',
+        userId: 'user-id',
+        deletedAt: null,
+      } as Account;
+      accountsRepository.findOne.mockResolvedValue(account);
+      accountsRepository.update.mockResolvedValue({
+        affected: 0,
+        raw: [],
+        generatedMaps: [],
+      });
+
+      await expect(
+        service.update('user-id', 'account-id', { name: 'New name' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

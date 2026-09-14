@@ -48,17 +48,33 @@ export class AccountsService {
     id: string,
     dto: UpdateAccountDto,
   ): Promise<Account> {
-    const account = await this.findOne(userId, id);
-    Object.assign(account, dto);
-    return this.accountsRepository.save(account);
+    await this.findOne(userId, id); // ownership + not-deleted check
+    // Scoped partial update (never touches `deletedAt`) instead of
+    // load-then-full-save: if a concurrent DELETE soft-deletes this row
+    // between the findOne() above and this write, `affected` is 0 and we
+    // fail with 404 instead of silently resurrecting the row (WR-02, same
+    // race as CR-01).
+    const result = await this.accountsRepository.update(
+      { id, userId, deletedAt: IsNull() },
+      dto,
+    );
+    if (result.affected === 0) {
+      throw new NotFoundException();
+    }
+    return this.findOne(userId, id);
   }
 
   // D-03: soft delete only. Never .delete()/.remove() on the repository —
   // Phase 4's transactions table will carry a foreign key to accounts.id.
   async remove(userId: string, id: string): Promise<void> {
-    const account = await this.findOne(userId, id);
-    account.deletedAt = new Date();
-    await this.accountsRepository.save(account);
+    await this.findOne(userId, id); // ownership + not-deleted check
+    const result = await this.accountsRepository.update(
+      { id, userId, deletedAt: IsNull() },
+      { deletedAt: new Date() },
+    );
+    if (result.affected === 0) {
+      throw new NotFoundException();
+    }
   }
 
   // ARCHITECTURE.md's single write-path for balance mutation — the only
