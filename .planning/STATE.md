@@ -1,44 +1,44 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 04
-current_phase_name: Transactions & Transfers
-status: verifying
-stopped_at: Completed 04-04-PLAN.md (Transactions/Transfers close-out)
-last_updated: "2026-09-14T12:58:06.107Z"
+current_phase: 5
+current_phase_name: Budgets
+status: planning
+stopped_at: Phase 04 complete, ready to plan Phase 5
+last_updated: "2026-09-14T14:34:27.346Z"
 last_activity: 2026-09-14
-last_activity_desc: Phase 04 execution resumed (wave continue)
-state_head: ac215a277060232f394ba5bde9e5a4e844d67c1d
+last_activity_desc: Phase 04 complete, transitioned to Phase 5
+state_head: 815cc4fe4e82a67c16fc8a9e7aacee5fe7c30850
 progress:
   total_phases: 9
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 15
   completed_plans: 15
-  percent: 0
+  percent: 11
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-13)
+See: .planning/PROJECT.md (updated 2026-09-14)
 
 **Core value:** A API funciona localmente, com segurança tratada como requisito central (não como extra), e evolui em etapas incrementais claras até chegar a um deploy AWS completo e auditável.
-**Current focus:** Phase 04 — Transactions & Transfers
+**Current focus:** Phase 05 — Budgets
 
 ## Current Position
 
-Phase: 04 (Transactions & Transfers) — EXECUTING
-Plan: 4 of 4 (03 complete, 04 remaining)
-Status: Phase complete — ready for verification
-Last activity: 2026-09-14 — Completed 04-03 (Transfers vertical slice)
+Phase: 5 — Budgets
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-09-14 — Phase 04 complete, transitioned to Phase 5
 
-Progress: [████████████████████] 8/8 plans ([░░░░░░░░░░] 0%)
+Progress: [████████████████████] 8/8 plans ([█░░░░░░░░░] 11%)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 11
+- Total plans completed: 15
 - Average duration: - min
 - Total execution time: 0 hours
 
@@ -49,6 +49,7 @@ Progress: [████████████████████] 8/8 pla
 | 01 | 5 | - | - |
 | 02 | 3 | - | - |
 | 03 | 3 | - | - |
+| 04 | 4 | - | - |
 
 **Recent Trend:**
 
@@ -106,6 +107,7 @@ Recent decisions affecting current work:
 - [Phase 04]: [Phase 04]: [Phase 04-03]: Both accounts' lock order for a transfer is computed once as [fromAccountId, toAccountId].sort() and reused identically by create() and remove() — guarantees direction-independent deadlock avoidance (Pitfall 2) and exact-inverse reversal
 - [Phase 04]: [Phase 04]: [Phase 04-03]: TransfersService.remove locks the transfer row via type: TransactionType.TRANSFER in its WHERE clause, symmetric to 04-02's type: In([INCOME, EXPENSE]) exclusion — a transaction id 404s through /transfers/:id and vice versa
 - [Phase 04]: Phase 4 close-out: integration-level precision proof (12 sequential alternating transactions, exact 40.62 balance), full 177-test combined regression suite green, security-review checklist applied to Transactions/Transfers + adjustBalance with explicit concurrency-mitigation re-verification — Mirrors 03-03's close-out pattern; no production code changes needed, checklist found no new gaps beyond what 04-01/04-02/04-03 already closed
+- [Phase 04]: UAT re-verification (post-review) found 04-VERIFICATION.md was stale — written before the 4 code-review fixes (CR-01/WR-01/02/03) landed. Re-verified live: all 4 fixes confirmed in source, full suite re-run clean (50/50 unit, 130/130 e2e), VERIFICATION.md and covered_digest updated to reflect fixed state, and a retroactive 04-SECURITY.md incorporated the 4 review findings as threats T-04-19..T-04-22 (all closed) alongside the plan-time STRIDE register — threats_open: 0
 
 ### Pending Todos
 
@@ -113,9 +115,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 4 (Transactions + Transfers, per research): TypeORM 1.x pessimistic locking API specifics are sparsely documented — validate exact `queryRunner`/`lock` API during Phase 4 planning rather than trusting 0.3.x-era examples.
 - Phase 8 (AWS Infrastructure): Fargate task sizing has no validated numeric starting point — start conservative and load-test rather than assuming vCPU/memory values from research.
 - Phase 9 (CI/CD): OIDC role scoping needs careful IAM policy design — a recurring failure mode noted in research pitfalls.
+- [Phase 4, non-blocking] No dedicated regression test exists for the PATCH-racing-DELETE interleaving that CR-01 fixed (`TransactionsService.update()`), unlike the equivalent DELETE-vs-DELETE case which has one. The mitigation is confirmed correct in source; a follow-up test would guard against a future regression of this exact class of bug.
+- Local dev note (not a code issue): default `PORT=3000` can collide with an unrelated Docker container on this machine (a separate personal project, `medolai-api`) — if `npm run start` fails with `EADDRINUSE`, override with `PORT=<free-port> npm run start` rather than assuming the app is broken.
 
 ## Deferred Items
 
@@ -127,6 +130,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-14T12:58:05.931Z
-Stopped at: Completed 04-04-PLAN.md (Transactions/Transfers close-out)
+Last session: 2026-09-14T14:40:00Z
+Stopped at: Phase 04 complete (UAT + security-verified), ready to plan Phase 5
 Resume file: None

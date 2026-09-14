@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Authentication & Multi-Tenant Foundation** - Users can sign up, log in via JWT, and every later module inherits a proven per-user data isolation pattern (completed 2026-09-12)
 - [x] **Phase 2: Accounts** - Users can manage typed financial accounts with balances that always match their transaction history (completed 2026-09-12)
 - [x] **Phase 3: Categories** - Users can organize income and expenses with their own custom categories (completed 2026-09-13)
-- [ ] **Phase 4: Transactions & Transfers** - Users can record income/expenses and transfer money between accounts atomically, with decimal-safe amounts
+- [x] **Phase 4: Transactions & Transfers** - Users can record income/expenses and transfer money between accounts atomically, with decimal-safe amounts (completed 2026-09-14)
 - [ ] **Phase 5: Budgets** - Users can set monthly category limits and see accurate consumed/remaining amounts
 - [ ] **Phase 6: Reports** - Users can retrieve category, consolidated-balance, and month-over-month reports
 - [ ] **Phase 7: Containerization** - The API runs identically in a Docker container as it does locally
@@ -241,7 +241,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 1. Authentication & Multi-Tenant Foundation | 5/5 | Complete    | 2026-09-12 |
 | 2. Accounts | 3/3 | Complete    | 2026-09-12 |
 | 3. Categories | 3/3 | Complete    | 2026-09-13 |
-| 4. Transactions & Transfers | 4/4 | In Progress|  |
+| 4. Transactions & Transfers | 4/4 | Complete    | 2026-09-14 |
 | 5. Budgets | 0/TBD | Not started | - |
 | 6. Reports | 0/TBD | Not started | - |
 | 7. Containerization | 0/TBD | Not started | - |

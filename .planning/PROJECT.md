@@ -16,11 +16,11 @@ A API funciona localmente, com segurança tratada como requisito central (não c
 - ✓ Isolamento multi-tenant — cada usuário só acessa seus próprios dados — Phase 1
 - ✓ Cadastro de contas (corrente, poupança, carteira, cartão de crédito) com saldo atual — Phase 2
 - ✓ Categorias de receita/despesa customizáveis pelo usuário — Phase 3
+- ✓ Lançamento de transações (receita/despesa) vinculadas a conta e categoria — Phase 4
+- ✓ Transferências entre contas — Phase 4
 
 ### Active
 
-- [ ] Lançamento de transações (receita/despesa) vinculadas a conta e categoria
-- [ ] Transferências entre contas
 - [ ] Orçamento mensal por categoria com cálculo de consumido/restante
 - [ ] Relatórios (JSON): resumo por categoria/período, saldo consolidado, comparação entre meses
 - [ ] Containerização com Docker (multi-stage build)
@@ -76,6 +76,10 @@ A API funciona localmente, com segurança tratada como requisito central (não c
 | `type` é permanentemente travado após a criação da categoria (D-02, Prohibition P2) | Consistência com o padrão já estabelecido em Accounts (Phase 2) — nenhuma feature futura pode reinterpretar o significado de uma categoria já em uso | ✓ Shipped Phase 3 |
 | Soft-delete de categorias (`deletedAt`, nunca hard-delete), liberando nome/tipo para reuso via índice parcial (D-01, D-03) | Preserva referências futuras (Phase 4/5 vincularão transações a categorias) e ainda permite recriar um nome antes usado | ✓ Shipped Phase 3 |
 | Code review pós-execução (antes do fechamento de fase) encontrou e corrigiu 1 bug crítico e 3 warnings: `update()` não traduzia unique-violation para 409 (500 não tratado), `:id` malformado gerava 500 em vez de 400, e `name` não era normalizado (trim) antes da checagem de unicidade | Corrigidos e cobertos com testes de regressão dedicados antes de marcar a fase como completa — nenhum gap deixado para a Phase 4 | ✓ Shipped Phase 3 — ver `03-REVIEW.md`/`03-REVIEW-FIX.md` |
+| Aritmética monetária via BigInt-cents (`src/common/decimal.util.ts`), nunca `parseFloat`/`Number()` | Elimina drift de ponto flutuante em somas repetidas; provado sob stress test de 1000 somas sequenciais e 12 transações intercaladas via API real | ✓ Shipped Phase 4 |
+| Transferências são uma entidade separada de transações no nível de endpoint (`POST /transfers`, sem `PATCH`), mas a mesma tabela `transactions` com `type=transfer` e `categoryId` sempre `null` (D-01/D-02/D-03) | Exclusão estrutural de transferências dos totais de categoria via CHECK constraint no Postgres, não por convenção de código | ✓ Shipped Phase 4 |
+| Todo write de saldo de conta passa por um único método (`AccountsService.adjustBalance`), sempre com lock `pessimistic_write` dentro de uma `QueryRunner` transaction compartilhada; contas com múltiplas pernas (transferências) são sempre lockadas em ordem ascendente de id, independente da direção | Elimina lost-update e deadlock sob concorrência — provado sob testes de concorrência dedicados (dupla-delete, transferências opostas simultâneas) | ✓ Shipped Phase 4 |
+| Code review pós-execução encontrou e corrigiu 1 bug crítico (CR-01) e 3 warnings (WR-01/02/03): `TransactionsService.update()`/`AccountsService.update()`/`remove()` faziam um read-then-full-save desprotegido que podia ressuscitar uma linha concorrentemente soft-deletada (mesma classe de bug que `remove()` já prevenia via lock); UUID com casing misto podia escapar da guarda de self-transfer; `adjustBalance()` não tinha teto de overflow para `numeric(12,2)` | Todos os 4 corrigidos via update condicional escopado (`repository.update({...,deletedAt:IsNull()}, dto)` com `affected===0` → 404) antes do fechamento da fase; suíte completa re-executada limpa (50/50 unit, 130/130 e2e). Um gap não-bloqueante permanece: nenhum teste de regressão dedicado para a interleaving específica PATCH-vs-DELETE (mitigação em código confirmada, teste ainda não escrito) | ✓ Shipped Phase 4 — ver `04-REVIEW.md`/`04-REVIEW-FIX.md`/`04-SECURITY.md` |
 
 ## Evolution
 
@@ -95,4 +99,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-13 after Phase 3*
+*Last updated: 2026-09-14 after Phase 4*
