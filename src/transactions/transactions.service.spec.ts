@@ -1,6 +1,7 @@
+import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { AccountsService } from '../accounts/accounts.service';
 import { CategoriesService } from '../categories/categories.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
@@ -14,13 +15,16 @@ describe('TransactionsService', () => {
   >;
   let categoriesService: jest.Mocked<Pick<CategoriesService, 'findOne'>>;
   let dataSource: jest.Mocked<Pick<DataSource, 'createQueryRunner'>>;
+  let transactionsRepository: jest.Mocked<
+    Pick<Repository<Transaction>, 'find' | 'findOne' | 'save'>
+  >;
   let queryRunner: {
     connect: jest.Mock;
     startTransaction: jest.Mock;
     commitTransaction: jest.Mock;
     rollbackTransaction: jest.Mock;
     release: jest.Mock;
-    manager: { create: jest.Mock; save: jest.Mock };
+    manager: { create: jest.Mock; save: jest.Mock; findOne: jest.Mock };
   };
 
   beforeEach(async () => {
@@ -33,6 +37,7 @@ describe('TransactionsService', () => {
       manager: {
         create: jest.fn(),
         save: jest.fn(),
+        findOne: jest.fn(),
       },
     };
 
@@ -46,13 +51,18 @@ describe('TransactionsService', () => {
     dataSource = {
       createQueryRunner: jest.fn().mockReturnValue(queryRunner),
     };
+    transactionsRepository = {
+      find: jest.fn(),
+      findOne: jest.fn(),
+      save: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TransactionsService,
         {
           provide: getRepositoryToken(Transaction),
-          useValue: {} as Repository<Transaction>,
+          useValue: transactionsRepository,
         },
         { provide: DataSource, useValue: dataSource },
         { provide: AccountsService, useValue: accountsService },
@@ -158,6 +168,121 @@ describe('TransactionsService', () => {
       accountsService.adjustBalance.mockRejectedValue(error);
 
       await expect(service.create(userId, dto)).rejects.toThrow(error);
+      expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(queryRunner.release).toHaveBeenCalled();
+    });
+  });
+
+  describe('findOne', () => {
+    it('throws NotFoundException when the repository returns null', async () => {
+      transactionsRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.findOne('user-id', 'missing-id')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('queries with a where clause scoped to type: In([INCOME, EXPENSE]) — a transfer row is excluded structurally', async () => {
+      transactionsRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.findOne('user-id', 'transfer-id')).rejects.toThrow(
+        NotFoundException,
+      );
+
+      expect(transactionsRepository.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            type: In([TransactionType.INCOME, TransactionType.EXPENSE]),
+          }) as unknown,
+        }),
+      );
+    });
+  });
+
+  describe('remove', () => {
+    it('calls accountsService.adjustBalance with a positive reversal delta for an EXPENSE transaction, and soft-deletes (never hard-deletes)', async () => {
+      const userId = 'user-id';
+      const transaction = {
+        id: 'transaction-id',
+        userId,
+        type: TransactionType.EXPENSE,
+        amount: '100.00',
+        accountId: 'account-id',
+        deletedAt: null,
+      } as unknown as Transaction;
+
+      queryRunner.manager.findOne.mockResolvedValue(transaction);
+      accountsService.adjustBalance.mockResolvedValue({} as never);
+      queryRunner.manager.save.mockResolvedValue(transaction);
+
+      await service.remove(userId, 'transaction-id');
+
+      expect(accountsService.adjustBalance).toHaveBeenCalledWith(
+        expect.anything() as EntityManager,
+        userId,
+        'account-id',
+        '100.00',
+      );
+      expect(transaction.deletedAt).not.toBeNull();
+      expect(queryRunner.manager.save).toHaveBeenCalledWith(transaction);
+      expect(queryRunner.commitTransaction).toHaveBeenCalled();
+      expect(queryRunner.release).toHaveBeenCalled();
+    });
+
+    it('calls accountsService.adjustBalance with a negative reversal delta for an INCOME transaction', async () => {
+      const userId = 'user-id';
+      const transaction = {
+        id: 'transaction-id',
+        userId,
+        type: TransactionType.INCOME,
+        amount: '500.00',
+        accountId: 'account-id',
+        deletedAt: null,
+      } as unknown as Transaction;
+
+      queryRunner.manager.findOne.mockResolvedValue(transaction);
+      accountsService.adjustBalance.mockResolvedValue({} as never);
+      queryRunner.manager.save.mockResolvedValue(transaction);
+
+      await service.remove(userId, 'transaction-id');
+
+      expect(accountsService.adjustBalance).toHaveBeenCalledWith(
+        expect.anything() as EntityManager,
+        userId,
+        'account-id',
+        '-500.00',
+      );
+    });
+
+    it('throws NotFoundException and never calls adjustBalance when the locked transaction is not found (already deleted, foreign, or transfer type)', async () => {
+      queryRunner.manager.findOne.mockResolvedValue(null);
+
+      await expect(service.remove('user-id', 'transaction-id')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(accountsService.adjustBalance).not.toHaveBeenCalled();
+      expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(queryRunner.release).toHaveBeenCalled();
+    });
+
+    it('rolls back and releases the query runner when adjustBalance throws (error case)', async () => {
+      const userId = 'user-id';
+      const transaction = {
+        id: 'transaction-id',
+        userId,
+        type: TransactionType.EXPENSE,
+        amount: '100.00',
+        accountId: 'account-id',
+        deletedAt: null,
+      } as unknown as Transaction;
+
+      queryRunner.manager.findOne.mockResolvedValue(transaction);
+      const error = new Error('boom');
+      accountsService.adjustBalance.mockRejectedValue(error);
+
+      await expect(service.remove(userId, 'transaction-id')).rejects.toThrow(
+        error,
+      );
       expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
       expect(queryRunner.release).toHaveBeenCalled();
     });
