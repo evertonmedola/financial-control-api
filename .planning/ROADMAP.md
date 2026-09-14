@@ -125,7 +125,7 @@ Plans:
   3. Transfers never appear in category spend totals or budget consumption — only income/expense transactions do.
   4. Monetary amounts round-trip exactly across create/list/update with no floating-point rounding drift.
 
-**Plans**: 1/4 plans executed
+**Plans**: 3/4 plans executed
 
 Plans:
 **Wave 1**
@@ -134,8 +134,8 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 04-02-PLAN.md — Transactions full CRUD: list/view/update/delete, locked fields (D-04), atomic locked reversal (D-06), cross-tenant isolation suite
-- [ ] 04-03-PLAN.md — Transfers: create/delete with two-account atomic locking (D-01/D-02/D-05), TXN-04 category-exclusion proof, cross-tenant isolation suite
+- [x] 04-02-PLAN.md — Transactions full CRUD: list/view/update/delete, locked fields (D-04), atomic locked reversal (D-06), cross-tenant isolation suite
+- [x] 04-03-PLAN.md — Transfers: create/delete with two-account atomic locking (D-01/D-02/D-05), TXN-04 category-exclusion proof, cross-tenant isolation suite
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -241,7 +241,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 1. Authentication & Multi-Tenant Foundation | 5/5 | Complete    | 2026-09-12 |
 | 2. Accounts | 3/3 | Complete    | 2026-09-12 |
 | 3. Categories | 3/3 | Complete    | 2026-09-13 |
-| 4. Transactions & Transfers | 1/4 | In Progress|  |
+| 4. Transactions & Transfers | 3/4 | In Progress|  |
 | 5. Budgets | 0/TBD | Not started | - |
 | 6. Reports | 0/TBD | Not started | - |
 | 7. Containerization | 0/TBD | Not started | - |

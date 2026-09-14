@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Transactions & Transfers
 status: executing
-stopped_at: Phase 4 context gathered
-last_updated: "2026-09-13T23:14:25.644Z"
-last_activity: 2026-09-13
-last_activity_desc: Phase 04 execution started
-state_head: bf66c7ebef4fc3ab17b11dfc3979fc0f278998a4
+stopped_at: Completed 04-03-PLAN.md (Transfers vertical slice)
+last_updated: "2026-09-14T12:51:31.187Z"
+last_activity: 2026-09-14
+last_activity_desc: Phase 04 execution resumed (wave continue)
+state_head: 42646799f4e92a9df37cb149c66f363b63f76f58
 progress:
   total_phases: 9
-  completed_phases: 1
+  completed_phases: 0
   total_plans: 15
-  completed_plans: 11
-  percent: 11
+  completed_plans: 14
+  percent: 0
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-09-13)
 ## Current Position
 
 Phase: 04 (Transactions & Transfers) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 04
-Last activity: 2026-09-13 — Phase 04 execution started
+Plan: 4 of 4 (03 complete, 04 remaining)
+Status: Ready to execute
+Last activity: 2026-09-14 — Completed 04-03 (Transfers vertical slice)
 
-Progress: [████████████████████] 8/8 plans ([█░░░░░░░░░] 11%)
+Progress: [████████████████████] 8/8 plans ([░░░░░░░░░░] 0%)
 
 ## Performance Metrics
 
@@ -70,6 +70,7 @@ Progress: [████████████████████] 8/8 pla
 | Phase 02 P03 | 20min | 2 tasks | 1 files |
 | Phase 03 P03-02 | 12min | 2 tasks | 6 files |
 | Phase 03 P03-03 | 12min | 2 tasks | 1 files |
+| Phase 04 P03 | 40min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,8 @@ Recent decisions affecting current work:
 - [Phase 03]: [Phase 03]: [Phase 03-01]: Removed GET /categories list-count cross-checks from 03-01's e2e tests (Rule 3 deviation) — That endpoint is CAT-02 scope owned by 03-02-PLAN.md and doesn't exist yet — the 201-then-409 status sequence alone is sufficient proof of non-duplication, since a Postgres unique-violation aborts the INSERT entirely
 - [Phase 03]: [Phase 03-02]: UpdateCategoryDto narrowed to name-only (no type field) — D-02's type-locked-after-creation rule enforced entirely via DTO-layer omission plus global forbidNonWhitelisted:true, mirroring UpdateAccountDto exactly
 - [Phase 03]: [Phase 03-02]: DELETE /categories/:id returns 200 + {} (not 204), mirroring AccountsController.remove()'s established empty-envelope convention for response-shape consistency across domain modules
+- [Phase 04]: [Phase 04]: [Phase 04-03]: Both accounts' lock order for a transfer is computed once as [fromAccountId, toAccountId].sort() and reused identically by create() and remove() — guarantees direction-independent deadlock avoidance (Pitfall 2) and exact-inverse reversal
+- [Phase 04]: [Phase 04]: [Phase 04-03]: TransfersService.remove locks the transfer row via type: TransactionType.TRANSFER in its WHERE clause, symmetric to 04-02's type: In([INCOME, EXPENSE]) exclusion — a transaction id 404s through /transfers/:id and vice versa
 
 ### Pending Todos
 
@@ -122,6 +125,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-13T21:50:20.954Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-transactions-transfers/04-CONTEXT.md
+Last session: 2026-09-14T12:51:31.074Z
+Stopped at: Completed 04-03-PLAN.md (Transfers vertical slice)
+Resume file: None
