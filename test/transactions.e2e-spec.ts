@@ -446,4 +446,372 @@ describe('Transactions (e2e)', () => {
       expect(response.status).toBe(400);
     });
   });
+
+  describe('list/view/update/delete transaction', () => {
+    it('GET /transactions on a freshly-registered user with zero transactions returns 200 with an empty array (edge-probe: empty)', async () => {
+      const freshEmail = uniqueEmail();
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: freshEmail, password })
+        .expect(201);
+      const freshLogin = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: freshEmail, password })
+        .expect(200);
+      const freshAccessToken =
+        (freshLogin.body as EnvelopeBody<AuthData>).data?.accessToken ?? '';
+
+      const response = await request(app.getHttpServer())
+        .get('/transactions')
+        .set('Authorization', `Bearer ${freshAccessToken}`);
+
+      expect(response.status).toBe(200);
+      expect((response.body as EnvelopeBody<TransactionData[]>).data).toEqual(
+        [],
+      );
+    });
+
+    it('GET /transactions returns transactions ordered by date DESC regardless of creation order (edge-probe: ordering)', async () => {
+      const account = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Conta Ordenacao', type: 'corrente', balance: '0.00' });
+      const orderingAccountId = (account.body as EnvelopeBody<AccountData>).data
+        ?.id as string;
+
+      const dates = ['2026-09-01', '2026-09-10', '2026-09-05'];
+      for (const date of dates) {
+        await request(app.getHttpServer())
+          .post('/transactions')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            type: 'expense',
+            amount: '1.00',
+            accountId: orderingAccountId,
+            categoryId,
+            description: `Data ${date}`,
+            date,
+          })
+          .expect(201);
+      }
+
+      const response = await request(app.getHttpServer())
+        .get('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(response.status).toBe(200);
+      const ownDates = (
+        (response.body as EnvelopeBody<TransactionData[]>).data ?? []
+      )
+        .filter((t) => t.accountId === orderingAccountId)
+        .map((t) => t.date);
+      expect(ownDates).toEqual(['2026-09-10', '2026-09-05', '2026-09-01']);
+    });
+
+    it('GET /transactions breaks a date tie by createdAt DESC, stable across repeated calls (edge-probe: adjacency)', async () => {
+      const account = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Conta Adjacencia', type: 'corrente', balance: '0.00' });
+      const adjacencyAccountId = (account.body as EnvelopeBody<AccountData>)
+        .data?.id as string;
+
+      const first = await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          type: 'expense',
+          amount: '1.00',
+          accountId: adjacencyAccountId,
+          categoryId,
+          description: 'Primeiro',
+          date: '2026-09-13',
+        })
+        .expect(201);
+      const second = await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          type: 'expense',
+          amount: '1.00',
+          accountId: adjacencyAccountId,
+          categoryId,
+          description: 'Segundo',
+          date: '2026-09-13',
+        })
+        .expect(201);
+      const firstId = (first.body as EnvelopeBody<TransactionData>).data?.id;
+      const secondId = (second.body as EnvelopeBody<TransactionData>).data?.id;
+
+      const call1 = await request(app.getHttpServer())
+        .get('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`);
+      const call2 = await request(app.getHttpServer())
+        .get('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`);
+
+      const idsForAccount = (body: EnvelopeBody<TransactionData[]>) =>
+        (body.data ?? [])
+          .filter((t) => t.accountId === adjacencyAccountId)
+          .map((t) => t.id);
+
+      const ids1 = idsForAccount(call1.body as EnvelopeBody<TransactionData[]>);
+      const ids2 = idsForAccount(call2.body as EnvelopeBody<TransactionData[]>);
+
+      expect(ids1).toEqual([secondId, firstId]);
+      expect(ids2).toEqual(ids1);
+    });
+
+    it('PATCH /transactions/:id rejects amount/accountId/categoryId with 400, but a description-only PATCH succeeds and leaves locked fields unchanged (D-04)', async () => {
+      const account = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Conta Patch', type: 'corrente', balance: '1000.00' });
+      const patchAccountId = (account.body as EnvelopeBody<AccountData>).data
+        ?.id as string;
+
+      const created = await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          type: 'expense',
+          amount: '20.00',
+          accountId: patchAccountId,
+          categoryId,
+          description: 'Original',
+          date: '2026-09-13',
+        })
+        .expect(201);
+      const transactionId = (created.body as EnvelopeBody<TransactionData>).data
+        ?.id as string;
+
+      const amountAttempt = await request(app.getHttpServer())
+        .patch(`/transactions/${transactionId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ amount: '999.00' });
+      expect(amountAttempt.status).toBe(400);
+
+      const accountAttempt = await request(app.getHttpServer())
+        .patch(`/transactions/${transactionId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ accountId: categoryId });
+      expect(accountAttempt.status).toBe(400);
+
+      const categoryAttempt = await request(app.getHttpServer())
+        .patch(`/transactions/${transactionId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ categoryId: patchAccountId });
+      expect(categoryAttempt.status).toBe(400);
+
+      const descriptionOnly = await request(app.getHttpServer())
+        .patch(`/transactions/${transactionId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ description: 'Novo texto' });
+      expect(descriptionOnly.status).toBe(200);
+
+      const afterPatch = await request(app.getHttpServer())
+        .get(`/transactions/${transactionId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      const afterPatchData = (afterPatch.body as EnvelopeBody<TransactionData>)
+        .data;
+      expect(afterPatchData?.description).toBe('Novo texto');
+      expect(afterPatchData?.amount).toBe('20.00');
+      expect(afterPatchData?.accountId).toBe(patchAccountId);
+      expect(afterPatchData?.categoryId).toBe(categoryId);
+    });
+
+    it('DELETE /transactions/:id reverses the exact balance effect for an expense and for an income (D-06)', async () => {
+      const expenseAccount = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'Conta Reversao Despesa',
+          type: 'corrente',
+          balance: '1000.00',
+        });
+      const expenseAccountId = (
+        expenseAccount.body as EnvelopeBody<AccountData>
+      ).data?.id as string;
+      const expenseTransaction = await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          type: 'expense',
+          amount: '50.00',
+          accountId: expenseAccountId,
+          categoryId,
+          description: 'Despesa a reverter',
+          date: '2026-09-13',
+        })
+        .expect(201);
+      const expenseTransactionId = (
+        expenseTransaction.body as EnvelopeBody<TransactionData>
+      ).data?.id as string;
+
+      const expenseDelete = await request(app.getHttpServer())
+        .delete(`/transactions/${expenseTransactionId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(expenseDelete.status).toBe(200);
+
+      const expenseAccountAfter = await request(app.getHttpServer())
+        .get(`/accounts/${expenseAccountId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(
+        (expenseAccountAfter.body as EnvelopeBody<AccountData>).data?.balance,
+      ).toBe('1000.00');
+
+      const incomeAccount = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'Conta Reversao Receita',
+          type: 'corrente',
+          balance: '1000.00',
+        });
+      const incomeAccountId = (incomeAccount.body as EnvelopeBody<AccountData>)
+        .data?.id as string;
+      const incomeTransaction = await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          type: 'income',
+          amount: '75.00',
+          accountId: incomeAccountId,
+          categoryId,
+          description: 'Receita a reverter',
+          date: '2026-09-13',
+        })
+        .expect(201);
+      const incomeTransactionId = (
+        incomeTransaction.body as EnvelopeBody<TransactionData>
+      ).data?.id as string;
+
+      const incomeDelete = await request(app.getHttpServer())
+        .delete(`/transactions/${incomeTransactionId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(incomeDelete.status).toBe(200);
+
+      const incomeAccountAfter = await request(app.getHttpServer())
+        .get(`/accounts/${incomeAccountId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(
+        (incomeAccountAfter.body as EnvelopeBody<AccountData>).data?.balance,
+      ).toBe('1000.00');
+    });
+
+    it('a second DELETE on an already-deleted transaction id returns 404 and never double-reverses the balance (edge-probe: idempotency)', async () => {
+      const account = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'Conta Delete Duplo',
+          type: 'corrente',
+          balance: '1000.00',
+        });
+      const idempotentAccountId = (account.body as EnvelopeBody<AccountData>)
+        .data?.id as string;
+      const created = await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          type: 'expense',
+          amount: '40.00',
+          accountId: idempotentAccountId,
+          categoryId,
+          description: 'Delete duplo',
+          date: '2026-09-13',
+        })
+        .expect(201);
+      const transactionId = (created.body as EnvelopeBody<TransactionData>).data
+        ?.id as string;
+
+      const firstDelete = await request(app.getHttpServer())
+        .delete(`/transactions/${transactionId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(firstDelete.status).toBe(200);
+
+      const balanceAfterFirst = (
+        (
+          await request(app.getHttpServer())
+            .get(`/accounts/${idempotentAccountId}`)
+            .set('Authorization', `Bearer ${accessToken}`)
+        ).body as EnvelopeBody<AccountData>
+      ).data?.balance;
+      // Delete reverses the expense's balance effect immediately (D-06) —
+      // the account balance goes back to its pre-transaction value (1000.00),
+      // not the post-transaction value (960.00).
+      expect(balanceAfterFirst).toBe('1000.00');
+
+      const secondDelete = await request(app.getHttpServer())
+        .delete(`/transactions/${transactionId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(secondDelete.status).toBe(404);
+
+      const balanceAfterSecond = (
+        (
+          await request(app.getHttpServer())
+            .get(`/accounts/${idempotentAccountId}`)
+            .set('Authorization', `Bearer ${accessToken}`)
+        ).body as EnvelopeBody<AccountData>
+      ).data?.balance;
+      // Unchanged between first and second delete attempts — the second
+      // (404) never double-reverses.
+      expect(balanceAfterSecond).toBe(balanceAfterFirst);
+    });
+
+    it('two concurrent DELETEs on the same transaction id never double-reverse the balance — exactly one 200, one 404 (edge-probe: concurrency, Pitfall 2)', async () => {
+      const account = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'Conta Delete Concorrente',
+          type: 'corrente',
+          balance: '1000.00',
+        });
+      const concurrentAccountId = (account.body as EnvelopeBody<AccountData>)
+        .data?.id as string;
+      const created = await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          type: 'expense',
+          amount: '30.00',
+          accountId: concurrentAccountId,
+          categoryId,
+          description: 'Delete concorrente',
+          date: '2026-09-13',
+        })
+        .expect(201);
+      const transactionId = (created.body as EnvelopeBody<TransactionData>).data
+        ?.id as string;
+
+      const [first, second] = await Promise.all([
+        request(app.getHttpServer())
+          .delete(`/transactions/${transactionId}`)
+          .set('Authorization', `Bearer ${accessToken}`),
+        request(app.getHttpServer())
+          .delete(`/transactions/${transactionId}`)
+          .set('Authorization', `Bearer ${accessToken}`),
+      ]);
+
+      const statuses = [first.status, second.status].sort();
+      expect(statuses).toEqual([200, 404]);
+
+      const accountAfter = await request(app.getHttpServer())
+        .get(`/accounts/${concurrentAccountId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      // The balance is reversed EXACTLY ONCE — back to the pre-transaction
+      // value (1000.00), never twice (which would overshoot to 1030.00) and
+      // never zero times (which would leave it at 970.00).
+      expect(
+        (accountAfter.body as EnvelopeBody<AccountData>).data?.balance,
+      ).toBe('1000.00');
+    });
+
+    // Transfer-id exclusion (this plan's key architectural decision): a
+    // transfer created via a raw repository-adjacent path is not available
+    // yet — POST /transfers ships in 04-03-PLAN.md. This case is
+    // deliberately skipped here and will be covered by 04-03-PLAN.md's own
+    // cross-tenant/e2e task once /transfers exists (documented deviation,
+    // not an oversight — see this plan's action text).
+  });
 });
