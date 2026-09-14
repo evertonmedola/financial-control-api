@@ -29,7 +29,7 @@ Requirements for initial release (API local completa, containerizada). Deploy AW
 ### Transactions
 
 - [ ] **TXN-01**: User can create a transaction (receita/despesa) with amount, date, description, linked account, and linked category
-- [ ] **TXN-02**: User can list, view, update, and delete their own transactions
+- [x] **TXN-02**: User can list, view, update, and delete their own transactions
 - [ ] **TXN-03**: User can create a transfer between two of their own accounts, recorded so both account balances update atomically
 - [ ] **TXN-04**: Transfers are excluded from category spend totals and budget consumption calculations (a transfer is not new spending)
 - [ ] **TXN-05**: Monetary amounts are stored and calculated without floating-point rounding errors (decimal-safe representation)
@@ -100,7 +100,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAT-01 | Phase 3 | Complete |
 | CAT-02 | Phase 3 | Complete |
 | TXN-01 | Phase 4 | Pending |
-| TXN-02 | Phase 4 | Pending |
+| TXN-02 | Phase 4 | Complete |
 | TXN-03 | Phase 4 | Pending |
 | TXN-04 | Phase 4 | Pending |
 | TXN-05 | Phase 4 | Pending |
