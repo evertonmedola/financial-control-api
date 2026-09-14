@@ -111,9 +111,24 @@ export class TransactionsService {
     id: string,
     dto: UpdateTransactionDto,
   ): Promise<Transaction> {
-    const transaction = await this.findOne(userId, id);
-    Object.assign(transaction, dto);
-    return this.transactionsRepository.save(transaction);
+    await this.findOne(userId, id); // ownership + type-scope + not-deleted check
+    // Scoped partial update (never touches `deletedAt`) instead of
+    // load-then-full-save: if a concurrent DELETE soft-deletes this row
+    // between the findOne() above and this write, `affected` is 0 and we
+    // fail with 404 instead of silently resurrecting the row (CR-01).
+    const result = await this.transactionsRepository.update(
+      {
+        id,
+        userId,
+        deletedAt: IsNull(),
+        type: In([TransactionType.INCOME, TransactionType.EXPENSE]),
+      },
+      dto,
+    );
+    if (result.affected === 0) {
+      throw new NotFoundException();
+    }
+    return this.findOne(userId, id);
   }
 
   // D-06: atomic locked reversal-then-soft-delete. The transaction row
