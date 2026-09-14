@@ -125,12 +125,12 @@ Plans:
   3. Transfers never appear in category spend totals or budget consumption — only income/expense transactions do.
   4. Monetary amounts round-trip exactly across create/list/update with no floating-point rounding drift.
 
-**Plans**: 4 plans
+**Plans**: 1/4 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 04-01-PLAN.md — Tracer: create expense/income transaction end-to-end (entity, migration, decimal util, real AccountsService.adjustBalance, DTOs, service.create, controller POST, module wiring)
+- [x] 04-01-PLAN.md — Tracer: create expense/income transaction end-to-end (entity, migration, decimal util, real AccountsService.adjustBalance, DTOs, service.create, controller POST, module wiring)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -241,7 +241,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 1. Authentication & Multi-Tenant Foundation | 5/5 | Complete    | 2026-09-12 |
 | 2. Accounts | 3/3 | Complete    | 2026-09-12 |
 | 3. Categories | 3/3 | Complete    | 2026-09-13 |
-| 4. Transactions & Transfers | 0/TBD | Not started | - |
+| 4. Transactions & Transfers | 1/4 | In Progress|  |
 | 5. Budgets | 0/TBD | Not started | - |
 | 6. Reports | 0/TBD | Not started | - |
 | 7. Containerization | 0/TBD | Not started | - |
