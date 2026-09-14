@@ -445,6 +445,60 @@ describe('Transactions (e2e)', () => {
 
       expect(response.status).toBe(400);
     });
+
+    it('12 sequential alternating income/expense transactions against a single account yield the exact hand-computed final balance — integration-level precision invariant (TXN-05)', async () => {
+      const account = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'Conta Precisao Integracao',
+          type: 'corrente',
+          balance: '0.00',
+        });
+      const precisionAccountId = (account.body as EnvelopeBody<AccountData>)
+        .data?.id as string;
+
+      // 6x income '10.10' + 6x expense '3.33', fired sequentially (not
+      // concurrently — this proves accumulation precision, not locking,
+      // which the dedicated concurrency test above already covers).
+      // Expected: 6*10.10 - 6*3.33 = 60.60 - 19.98 = 40.62 exactly, with no
+      // float drift through DTO validation -> QueryRunner transaction ->
+      // adjustBalance -> decimal(12,2) column round trip.
+      for (let i = 0; i < 6; i++) {
+        await request(app.getHttpServer())
+          .post('/transactions')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            type: 'income',
+            amount: '10.10',
+            accountId: precisionAccountId,
+            categoryId,
+            description: `Precisao income ${i}`,
+            date: '2026-09-13',
+          })
+          .expect(201);
+
+        await request(app.getHttpServer())
+          .post('/transactions')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            type: 'expense',
+            amount: '3.33',
+            accountId: precisionAccountId,
+            categoryId,
+            description: `Precisao expense ${i}`,
+            date: '2026-09-13',
+          })
+          .expect(201);
+      }
+
+      const accountAfter = await request(app.getHttpServer())
+        .get(`/accounts/${precisionAccountId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(
+        (accountAfter.body as EnvelopeBody<AccountData>).data?.balance,
+      ).toBe('40.62');
+    });
   });
 
   describe('list/view/update/delete transaction', () => {
