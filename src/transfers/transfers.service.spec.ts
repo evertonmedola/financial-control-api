@@ -1,9 +1,12 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { AccountsService } from '../accounts/accounts.service';
-import { Transaction } from '../transactions/entities/transaction.entity';
+import {
+  Transaction,
+  TransactionType,
+} from '../transactions/entities/transaction.entity';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { TransfersService } from './transfers.service';
 
@@ -182,6 +185,104 @@ describe('TransfersService', () => {
       accountsService.adjustBalance.mockRejectedValue(error);
 
       await expect(service.create(userId, dto)).rejects.toThrow(error);
+      expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(queryRunner.release).toHaveBeenCalled();
+    });
+  });
+
+  describe('remove', () => {
+    it('locks the transfer row with type: TransactionType.TRANSFER in its where clause, and reverses both accounts in the SAME ascending-id order as create() (from < to)', async () => {
+      const userId = 'user-id';
+      const transfer = {
+        id: 'transfer-id',
+        userId,
+        type: TransactionType.TRANSFER,
+        amount: '200.00',
+        fromAccountId: 'aaaa-account',
+        toAccountId: 'bbbb-account',
+        deletedAt: null,
+      } as unknown as Transaction;
+
+      queryRunner.manager.findOne.mockResolvedValue(transfer);
+      accountsService.adjustBalance.mockResolvedValue({} as never);
+      queryRunner.manager.save.mockResolvedValue(transfer);
+
+      await service.remove(userId, 'transfer-id');
+
+      expect(queryRunner.manager.findOne).toHaveBeenCalledWith(
+        Transaction,
+        expect.objectContaining({
+          where: expect.objectContaining({
+            type: TransactionType.TRANSFER,
+          }) as unknown,
+        }),
+      );
+      // Reversal is the exact inverse of create(): fromAccountId gets its
+      // money back (+), toAccountId gives it back (-) — same ascending-id
+      // lock order (aaaa-account first).
+      expect(accountsService.adjustBalance).toHaveBeenNthCalledWith(
+        1,
+        expect.anything() as EntityManager,
+        userId,
+        'aaaa-account',
+        '200.00',
+      );
+      expect(accountsService.adjustBalance).toHaveBeenNthCalledWith(
+        2,
+        expect.anything() as EntityManager,
+        userId,
+        'bbbb-account',
+        '-200.00',
+      );
+      expect(transfer.deletedAt).not.toBeNull();
+      expect(queryRunner.manager.save).toHaveBeenCalledWith(transfer);
+      expect(queryRunner.commitTransaction).toHaveBeenCalled();
+      expect(queryRunner.release).toHaveBeenCalled();
+    });
+
+    it('computes the correct inverse deltas in the SAME ascending-id order even when fromAccountId > toAccountId', async () => {
+      const userId = 'user-id';
+      const transfer = {
+        id: 'transfer-id',
+        userId,
+        type: TransactionType.TRANSFER,
+        amount: '200.00',
+        fromAccountId: 'bbbb-account',
+        toAccountId: 'aaaa-account',
+        deletedAt: null,
+      } as unknown as Transaction;
+
+      queryRunner.manager.findOne.mockResolvedValue(transfer);
+      accountsService.adjustBalance.mockResolvedValue({} as never);
+      queryRunner.manager.save.mockResolvedValue(transfer);
+
+      await service.remove(userId, 'transfer-id');
+
+      // aaaa-account is toAccountId here — reversal takes money back from it.
+      expect(accountsService.adjustBalance).toHaveBeenNthCalledWith(
+        1,
+        expect.anything() as EntityManager,
+        userId,
+        'aaaa-account',
+        '-200.00',
+      );
+      expect(accountsService.adjustBalance).toHaveBeenNthCalledWith(
+        2,
+        expect.anything() as EntityManager,
+        userId,
+        'bbbb-account',
+        '200.00',
+      );
+    });
+
+    it('throws NotFoundException and never calls adjustBalance/hard-deletes when the locked findOne resolves null', async () => {
+      queryRunner.manager.findOne.mockResolvedValue(null);
+
+      await expect(service.remove('user-id', 'transfer-id')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(accountsService.adjustBalance).not.toHaveBeenCalled();
+      expect(queryRunner.manager.save).not.toHaveBeenCalled();
       expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
       expect(queryRunner.release).toHaveBeenCalled();
     });

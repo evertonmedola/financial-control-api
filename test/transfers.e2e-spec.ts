@@ -23,6 +23,15 @@ interface AccountData {
   balance?: string;
 }
 
+interface CategoryData {
+  id?: string;
+}
+
+interface TransactionData {
+  id?: string;
+  categoryId?: string | null;
+}
+
 interface AuthData {
   accessToken?: string;
   refreshToken?: string;
@@ -57,6 +66,25 @@ describe('Transfers (e2e)', () => {
       .get(`/accounts/${id}`)
       .set('Authorization', `Bearer ${accessToken}`);
     return (response.body as EnvelopeBody<AccountData>).data?.balance;
+  };
+
+  const createTransfer = async (
+    fromAccountId: string,
+    toAccountId: string,
+    amount: string,
+  ): Promise<string> => {
+    const response = await request(app.getHttpServer())
+      .post('/transfers')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        fromAccountId,
+        toAccountId,
+        amount,
+        date: '2026-09-13',
+        description: 'Transferência de teste',
+      })
+      .expect(201);
+    return (response.body as EnvelopeBody<TransferData>).data?.id as string;
   };
 
   beforeAll(async () => {
@@ -292,6 +320,136 @@ describe('Transfers (e2e)', () => {
         .send({ description: 'tentativa' });
 
       expect(response.status).toBe(404);
+    });
+  });
+
+  describe('delete transfer', () => {
+    it('DELETE /transfers/:id reverses both account balances to their exact pre-transfer values (D-06)', async () => {
+      const transferId = await createTransfer(accountA, accountB, '150.00');
+
+      const response = await request(app.getHttpServer())
+        .delete(`/transfers/${transferId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(response.status).toBe(200);
+
+      expect(await getBalance(accountA)).toBe('1000.00');
+      expect(await getBalance(accountB)).toBe('500.00');
+    });
+
+    it('a second DELETE on an already-deleted transfer id returns 404, and neither balance changes between attempts (edge-probe: idempotency)', async () => {
+      const transferId = await createTransfer(accountA, accountB, '150.00');
+
+      const firstDelete = await request(app.getHttpServer())
+        .delete(`/transfers/${transferId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(firstDelete.status).toBe(200);
+
+      const balanceAAfterFirst = await getBalance(accountA);
+      const balanceBAfterFirst = await getBalance(accountB);
+      expect(balanceAAfterFirst).toBe('1000.00');
+      expect(balanceBAfterFirst).toBe('500.00');
+
+      const secondDelete = await request(app.getHttpServer())
+        .delete(`/transfers/${transferId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(secondDelete.status).toBe(404);
+
+      expect(await getBalance(accountA)).toBe(balanceAAfterFirst);
+      expect(await getBalance(accountB)).toBe(balanceBAfterFirst);
+    });
+
+    it('two concurrent DELETEs on the same transfer id never double-reverse — exactly one 200, one 404, reversal happens EXACTLY ONCE (edge-probe: concurrency)', async () => {
+      const transferId = await createTransfer(accountA, accountB, '150.00');
+
+      const [first, second] = await Promise.all([
+        request(app.getHttpServer())
+          .delete(`/transfers/${transferId}`)
+          .set('Authorization', `Bearer ${accessToken}`),
+        request(app.getHttpServer())
+          .delete(`/transfers/${transferId}`)
+          .set('Authorization', `Bearer ${accessToken}`),
+      ]);
+
+      const statuses = [first.status, second.status].sort();
+      expect(statuses).toEqual([200, 404]);
+
+      // Reversed EXACTLY ONCE — never twice, never zero times.
+      expect(await getBalance(accountA)).toBe('1000.00');
+      expect(await getBalance(accountB)).toBe('500.00');
+    });
+
+    it('two concurrent opposite-direction transfers between the same account pair never deadlock and never lose an update (Pitfall 2, edge-probe: concurrency)', async () => {
+      const [aToB, bToA] = await Promise.all([
+        request(app.getHttpServer())
+          .post('/transfers')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            fromAccountId: accountA,
+            toAccountId: accountB,
+            amount: '100.00',
+            date: '2026-09-13',
+            description: 'A para B',
+          }),
+        request(app.getHttpServer())
+          .post('/transfers')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            fromAccountId: accountB,
+            toAccountId: accountA,
+            amount: '50.00',
+            date: '2026-09-13',
+            description: 'B para A',
+          }),
+      ]);
+
+      expect(aToB.status).toBe(201);
+      expect(bToA.status).toBe(201);
+
+      // accountA: 1000 - 100 + 50 = 950.00; accountB: 500 + 100 - 50 = 550.00.
+      expect(await getBalance(accountA)).toBe('950.00');
+      expect(await getBalance(accountB)).toBe('550.00');
+    });
+
+    it("a transfer's categoryId is always null — structurally excluded from any category-scoped spend total (TXN-04, D-03)", async () => {
+      const category = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Alimentação Transfer Test', type: 'despesa' })
+        .expect(201);
+      const categoryId = (category.body as EnvelopeBody<CategoryData>).data
+        ?.id as string;
+
+      const expense = await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          type: 'expense',
+          amount: '300.00',
+          accountId: accountA,
+          categoryId,
+          description: 'Despesa categorizada',
+          date: '2026-09-13',
+        })
+        .expect(201);
+      const expenseId = (expense.body as EnvelopeBody<TransactionData>).data
+        ?.id as string;
+
+      const transferId = await createTransfer(accountA, accountB, '999.00');
+
+      const list = await request(app.getHttpServer())
+        .get('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`);
+      const rows = (list.body as EnvelopeBody<TransactionData[]>).data ?? [];
+
+      const transferRow = rows.find((row) => row.id === transferId);
+      const expenseRow = rows.find((row) => row.id === expenseId);
+
+      // A category-scoped spend query can only ever be
+      // `WHERE category_id = X` — a null categoryId on the transfer row
+      // makes it mathematically impossible for it to be summed into that
+      // category's total, while the expense row is correctly attributed.
+      expect(transferRow?.categoryId).toBeNull();
+      expect(expenseRow?.categoryId).toBe(categoryId);
     });
   });
 });

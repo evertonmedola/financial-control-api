@@ -1,7 +1,12 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { AccountsService } from '../accounts/accounts.service';
+import { negateDecimalString } from '../common/decimal.util';
 import {
   Transaction,
   TransactionType,
@@ -82,6 +87,72 @@ export class TransfersService {
       const saved = await queryRunner.manager.save(transfer);
       await queryRunner.commitTransaction();
       return saved;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  // D-06: atomic locked reversal-then-soft-delete, mirroring
+  // TransactionsService.remove's pattern but reversing BOTH accounts. The
+  // transfer row itself is pessimistic-locked (with `type: TRANSFER` in the
+  // WHERE clause — a transaction id looked up here 404s, the symmetric
+  // exclusion of TransactionsService.findOne's `type: In([INCOME,
+  // EXPENSE])`) inside the same QueryRunner transaction that reverses both
+  // balances — a second concurrent DELETE blocks then finds nothing.
+  async remove(userId: string, id: string): Promise<void> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const transfer = await queryRunner.manager.findOne(Transaction, {
+        where: {
+          id,
+          userId,
+          deletedAt: IsNull(),
+          type: TransactionType.TRANSFER,
+        },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!transfer) {
+        throw new NotFoundException();
+      }
+
+      // Exact inverse of create()'s deltas, still locked in the SAME fixed
+      // ascending-id order to avoid deadlocking against a concurrent
+      // transfer touching the same account pair: give back to
+      // fromAccountId, take back from toAccountId.
+      const [firstId, secondId] = [
+        transfer.fromAccountId!,
+        transfer.toAccountId!,
+      ].sort();
+      const firstDelta =
+        firstId === transfer.fromAccountId
+          ? transfer.amount
+          : negateDecimalString(transfer.amount);
+      const secondDelta =
+        firstId === transfer.fromAccountId
+          ? negateDecimalString(transfer.amount)
+          : transfer.amount;
+
+      await this.accountsService.adjustBalance(
+        queryRunner.manager,
+        userId,
+        firstId,
+        firstDelta,
+      );
+      await this.accountsService.adjustBalance(
+        queryRunner.manager,
+        userId,
+        secondId,
+        secondDelta,
+      );
+
+      transfer.deletedAt = new Date();
+      await queryRunner.manager.save(transfer);
+      await queryRunner.commitTransaction();
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;

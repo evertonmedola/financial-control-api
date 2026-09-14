@@ -1,4 +1,11 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateTransferDto } from './dto/create-transfer.dto';
@@ -21,5 +28,17 @@ export class TransfersController {
   ): Promise<TransferResponseDto> {
     const transfer = await this.transfersService.create(userId, dto);
     return TransferResponseDto.fromEntity(transfer);
+  }
+
+  // Reverses both account balances via adjustBalance before commit — D-06.
+  // Returns {} mirroring TransactionsController.remove()'s established
+  // empty-envelope convention.
+  @Delete(':id')
+  async remove(
+    @CurrentUser() userId: string,
+    @Param('id') id: string,
+  ): Promise<Record<string, never>> {
+    await this.transfersService.remove(userId, id);
+    return {};
   }
 }
