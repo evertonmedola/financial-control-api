@@ -34,8 +34,17 @@ export class TransfersService {
   // since adjustBalance's own pessimistic_write lock does the row-level
   // work.
   async create(userId: string, dto: CreateTransferDto): Promise<Transaction> {
+    // Normalize BEFORE any comparison/use: `@IsUUID()` validates format,
+    // not canonical casing, and Postgres's `uuid` column compares
+    // case-insensitively. Without this, the same account submitted with
+    // different casing on each side would pass the `!==` self-transfer
+    // guard below, resolve to the same row via accountsService.findOne(),
+    // and bypass the business rule (WR-01).
+    const fromAccountId = dto.fromAccountId.toLowerCase();
+    const toAccountId = dto.toAccountId.toLowerCase();
+
     // Cheap fail-fast — no DB round-trip for an obviously-invalid request.
-    if (dto.fromAccountId === dto.toAccountId) {
+    if (fromAccountId === toAccountId) {
       throw new BadRequestException(
         'fromAccountId e toAccountId não podem ser iguais',
       );
@@ -44,8 +53,8 @@ export class TransfersService {
     // Ownership chain validated OUTSIDE the transaction, both legs
     // (Pitfall 3) — a cross-tenant reference on either side 404s before any
     // mutation is attempted.
-    await this.accountsService.findOne(userId, dto.fromAccountId);
-    await this.accountsService.findOne(userId, dto.toAccountId);
+    await this.accountsService.findOne(userId, fromAccountId);
+    await this.accountsService.findOne(userId, toAccountId);
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -54,11 +63,11 @@ export class TransfersService {
       // Ascending-id lock order — the single mechanism that prevents two
       // opposite-direction concurrent transfers between the same account
       // pair from deadlocking each other (Pitfall 2).
-      const [firstId, secondId] = [dto.fromAccountId, dto.toAccountId].sort();
+      const [firstId, secondId] = [fromAccountId, toAccountId].sort();
       const firstDelta =
-        firstId === dto.fromAccountId ? `-${dto.amount}` : dto.amount;
+        firstId === fromAccountId ? `-${dto.amount}` : dto.amount;
       const secondDelta =
-        firstId === dto.fromAccountId ? dto.amount : `-${dto.amount}`;
+        firstId === fromAccountId ? dto.amount : `-${dto.amount}`;
 
       await this.accountsService.adjustBalance(
         queryRunner.manager,
@@ -76,8 +85,8 @@ export class TransfersService {
       const transfer = queryRunner.manager.create(Transaction, {
         type: TransactionType.TRANSFER,
         amount: dto.amount,
-        fromAccountId: dto.fromAccountId,
-        toAccountId: dto.toAccountId,
+        fromAccountId,
+        toAccountId,
         date: dto.date,
         description: dto.description,
         userId,
