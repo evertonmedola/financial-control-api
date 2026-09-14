@@ -1,10 +1,24 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, IsNull, Repository } from 'typeorm';
-import { addDecimalStrings } from '../common/decimal.util';
+import {
+  addDecimalStrings,
+  isWithinDecimalRange,
+} from '../common/decimal.util';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 import { Account } from './entities/account.entity';
+
+// `balance` is `numeric(12,2)` (1789300000000-CreateAccounts.ts): 12 total
+// digits, 2 after the decimal point, so the representable range is exactly
+// +/-9999999999.99. Checked in adjustBalance() before save() so an overflow
+// is a controlled 400, not an unhandled Postgres `numeric field overflow`
+// (WR-03).
+const ACCOUNT_BALANCE_MAX_ABS = '9999999999.99';
 
 @Injectable()
 export class AccountsService {
@@ -109,7 +123,13 @@ export class AccountsService {
     if (!account) {
       throw new NotFoundException();
     }
-    account.balance = addDecimalStrings(account.balance, delta);
+    const newBalance = addDecimalStrings(account.balance, delta);
+    if (!isWithinDecimalRange(newBalance, ACCOUNT_BALANCE_MAX_ABS)) {
+      throw new BadRequestException(
+        'A operação excede o limite máximo permitido para o saldo da conta',
+      );
+    }
+    account.balance = newBalance;
     return manager.save(account);
   }
 }

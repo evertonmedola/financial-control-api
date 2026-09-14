@@ -48,3 +48,20 @@ export function addDecimalStrings(a: string, b: string): string {
 export function negateDecimalString(value: string): string {
   return fromCents(-toCents(value));
 }
+
+/**
+ * Returns true when `value` is within `[-maxAbsolute, maxAbsolute]`
+ * (inclusive), compared exactly via BigInt cents — no float drift. Intended
+ * for validating a computed balance against a `numeric(p,s)` column's
+ * representable range BEFORE persisting it, so an overflow surfaces as a
+ * controlled 400 instead of an unhandled Postgres `numeric field overflow`
+ * error (WR-03).
+ */
+export function isWithinDecimalRange(
+  value: string,
+  maxAbsolute: string,
+): boolean {
+  const cents = toCents(value);
+  const maxCents = toCents(maxAbsolute);
+  return cents <= maxCents && cents >= -maxCents;
+}
