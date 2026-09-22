@@ -1,10 +1,10 @@
 import { Transform } from 'class-transformer';
 import {
   IsDateString,
-  IsOptional,
   IsString,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
 /**
@@ -17,16 +17,26 @@ import {
  * here.
  */
 export class UpdateTransactionDto {
+  // CR-01 (05-REVIEW.md, iteration 3): @IsOptional() alone lets
+  // `{"description": null}` / `{"date": null}` through untouched —
+  // class-validator's IsOptional short-circuits ALL subsequent validators
+  // whenever the value is `null` OR `undefined`. Mirrors the
+  // UpdateBudgetDto CR-02 fix: @ValidateIf() replaces @IsOptional()
+  // entirely, only skipping validation when the field is absent
+  // (`undefined`), so an explicit `null` reaches @IsString()/@IsDateString()
+  // and correctly fails with a 400 instead of reaching the NOT NULL
+  // `description`/`date` columns and crashing with an unhandled 500.
+  //
   // Trimmed before validation, same rationale as CreateTransactionDto:
   // prevents a whitespace-only description.
-  @IsOptional()
+  @ValidateIf((_dto, value) => value !== undefined)
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(1)
   @MaxLength(255)
   description?: string;
 
-  @IsOptional()
+  @ValidateIf((_dto, value) => value !== undefined)
   @IsDateString()
   date?: string;
 }
