@@ -59,21 +59,33 @@ export class BudgetsService {
     return budget;
   }
 
-  // Ownership check (findOne) happens before mutation. `dto` can never
-  // carry `categoryId` — the DTO layer already excludes it (D-02). Reuses
-  // the same conflict-translating helper create() uses, though a
+  // WR-01: scoped conditional update instead of load-then-full-save,
+  // mirroring TransactionsService.update()'s deliberate pattern (see its
+  // own inline CR-01 comment). A read-then-Object.assign-then-save here
+  // would resurrect a concurrently soft-deleted budget: `save()` issues a
+  // full-column UPDATE from the in-memory entity, silently writing back
+  // `deletedAt = null` even if a concurrent DELETE committed between the
+  // read and this write. Scoping the UPDATE itself to
+  // `deletedAt: IsNull()` means a concurrent soft-delete makes `affected`
+  // 0, and we correctly 404 instead of reviving the row. `dto` can never
+  // carry `categoryId` — the DTO layer already excludes it (D-02) — so a
   // `limit`-only update can never actually collide with the
-  // (userId, categoryId) unique index since categoryId never changes here
-  // — kept for structural consistency with CategoriesService.update's
-  // pattern.
+  // (userId, categoryId) unique index; still routed through
+  // saveOrThrowConflict-style translation isn't needed here since a plain
+  // `Repository.update()` on a non-unique column can't raise 23505.
   async update(
     userId: string,
     id: string,
     dto: UpdateBudgetDto,
   ): Promise<Budget> {
-    const budget = await this.findOne(userId, id);
-    Object.assign(budget, dto);
-    return this.saveOrThrowConflict(budget);
+    const result = await this.budgetsRepository.update(
+      { id, userId, deletedAt: IsNull() },
+      dto,
+    );
+    if (result.affected === 0) {
+      throw new NotFoundException();
+    }
+    return this.findOne(userId, id);
   }
 
   // D-07: soft delete only. Never .delete()/.remove() on the repository —

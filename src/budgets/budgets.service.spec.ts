@@ -35,6 +35,7 @@ describe('BudgetsService', () => {
             save: jest.fn(),
             find: jest.fn(),
             findOne: jest.fn(),
+            update: jest.fn(),
             delete: jest.fn(),
             remove: jest.fn(),
           },
@@ -168,23 +169,45 @@ describe('BudgetsService', () => {
   });
 
   describe('update', () => {
-    it('finds by ownership then persists the merged dto via saveOrThrowConflict (happy path, D-02)', async () => {
-      const budget = {
+    it('issues a scoped conditional update, then re-reads the row (happy path, WR-01)', async () => {
+      budgetsRepository.update.mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      });
+      const updatedBudget = {
         id: 'budget-id',
         userId: 'user-id',
-        limit: '200.00',
+        limit: '400.00',
       } as Budget;
-      budgetsRepository.findOne.mockResolvedValue(budget);
-      budgetsRepository.save.mockImplementation((entity) =>
-        Promise.resolve(entity as Budget),
-      );
+      budgetsRepository.findOne.mockResolvedValue(updatedBudget);
 
       const result = await service.update('user-id', 'budget-id', {
         limit: '400.00',
       });
 
-      expect(result.limit).toBe('400.00');
-      expect(budgetsRepository.save.mock.calls[0]).toEqual([budget]);
+      expect(budgetsRepository.update.mock.calls[0][0]).toEqual({
+        id: 'budget-id',
+        userId: 'user-id',
+        deletedAt: expect.anything(),
+      });
+      expect(budgetsRepository.update.mock.calls[0][1]).toEqual({
+        limit: '400.00',
+      });
+      expect(result).toBe(updatedBudget);
+    });
+
+    it('throws NotFoundException instead of resurrecting a concurrently soft-deleted budget (error case, WR-01)', async () => {
+      budgetsRepository.update.mockResolvedValue({
+        affected: 0,
+        raw: [],
+        generatedMaps: [],
+      });
+
+      await expect(
+        service.update('user-id', 'budget-id', { limit: '400.00' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(budgetsRepository.findOne).not.toHaveBeenCalled();
     });
   });
 
