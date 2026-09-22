@@ -78,6 +78,19 @@ export class BudgetsService {
     id: string,
     dto: UpdateBudgetDto,
   ): Promise<Budget> {
+    // CR-01 (regression from the WR-01 fix): `UpdateBudgetDto`'s only field
+    // (`limit`) is entirely optional, so a `{}` PATCH body reaches here with
+    // no value-set to write. `Repository.update()` throws TypeORM's
+    // UpdateValuesMissingError (an unhandled 500) when the value-set is
+    // empty — short-circuit before calling it and just return the budget's
+    // current, unchanged state, mirroring the old Object.assign+save no-op.
+    // Note: `Object.keys(dto).length === 0` does NOT work as this guard —
+    // verified that class-transformer + this project's ES2023 compile
+    // target gives `dto` an own `limit` key (value `undefined`) even for an
+    // empty request body, since TS class fields use [[Define]] semantics.
+    if (dto.limit === undefined) {
+      return this.findOne(userId, id);
+    }
     const result = await this.budgetsRepository.update(
       { id, userId, deletedAt: IsNull() },
       dto,
