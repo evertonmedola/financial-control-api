@@ -19,10 +19,10 @@
     "quick_branch_template": null
   },
   "workflow": {
-    "research": true,
-    "plan_check": true,
+    "research": false,
+    "plan_check": false,
     "verifier": true,
-    "nyquist_validation": true,
+    "nyquist_validation": false,
     "auto_advance": false,
     "node_repair": true,
     "node_repair_budget": 2,
@@ -48,7 +48,9 @@
     "security_enforcement": true,
     "security_asvs_level": 1,
     "security_block_on": "high",
-    "_auto_chain_active": false
+    "_auto_chain_active": false,
+    "max_discuss_passes": 1,
+    "use_worktrees": false
   },
   "ship": {
     "pr_body_sections": [
@@ -90,5 +92,5 @@
   },
   "resolve_model_ids": "omit",
   "mode": "interactive",
-  "granularity": "fine"
+  "granularity": "standard"
 }
