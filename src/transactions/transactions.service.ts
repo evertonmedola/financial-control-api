@@ -4,6 +4,7 @@ import { DataSource, In, IsNull, Repository } from 'typeorm';
 import { AccountsService } from '../accounts/accounts.service';
 import { CategoriesService } from '../categories/categories.service';
 import { negateDecimalString } from '../common/decimal.util';
+import { hasNoUpdatableFields } from '../common/patch.util';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { Transaction, TransactionType } from './entities/transaction.entity';
@@ -117,13 +118,14 @@ export class TransactionsService {
     // body reaches here with no value-set to write. `Repository.update()`
     // throws TypeORM's UpdateValuesMissingError (an unhandled 500) when the
     // value-set is empty — short-circuit before calling it and just return
-    // the transaction's current, unchanged state. `Object.keys(dto).length
-    // === 0` does NOT work as this guard: class-transformer + this
-    // project's ES2023 compile target gives `dto` own keys (value
-    // `undefined`) for every declared field even on an empty request body,
-    // since TS class fields use [[Define]] semantics — so each optional
-    // field must be checked individually instead.
-    if (dto.description === undefined && dto.date === undefined) {
+    // the transaction's current, unchanged state.
+    // WR-01 (05-REVIEW.md, iteration 3): derived from the DTO's own keys via
+    // `hasNoUpdatableFields` rather than a hand-enumerated
+    // `dto.description === undefined && dto.date === undefined` check, so a
+    // future optional field added to `UpdateTransactionDto` is covered
+    // automatically instead of silently dropping its update if this guard
+    // isn't updated in lockstep.
+    if (hasNoUpdatableFields(dto)) {
       return existing;
     }
     // Scoped partial update (never touches `deletedAt`) instead of

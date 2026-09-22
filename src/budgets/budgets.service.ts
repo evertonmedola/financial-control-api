@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { CategoryType } from '../categories/entities/category.entity';
 import { CategoriesService } from '../categories/categories.service';
+import { hasNoUpdatableFields } from '../common/patch.util';
 import { TransactionsService } from '../transactions/transactions.service';
 import { CreateBudgetDto } from './dto/create-budget.dto';
 import { UpdateBudgetDto } from './dto/update-budget.dto';
@@ -84,11 +85,12 @@ export class BudgetsService {
     // UpdateValuesMissingError (an unhandled 500) when the value-set is
     // empty — short-circuit before calling it and just return the budget's
     // current, unchanged state, mirroring the old Object.assign+save no-op.
-    // Note: `Object.keys(dto).length === 0` does NOT work as this guard —
-    // verified that class-transformer + this project's ES2023 compile
-    // target gives `dto` an own `limit` key (value `undefined`) even for an
-    // empty request body, since TS class fields use [[Define]] semantics.
-    if (dto.limit === undefined) {
+    // WR-01 (05-REVIEW.md, iteration 3): derived from the DTO's own keys via
+    // `hasNoUpdatableFields` rather than a hand-enumerated
+    // `dto.limit === undefined` check, so a future optional field added to
+    // `UpdateBudgetDto` is covered automatically instead of silently
+    // dropping its update if this guard isn't updated in lockstep.
+    if (hasNoUpdatableFields(dto)) {
       return this.findOne(userId, id);
     }
     const result = await this.budgetsRepository.update(
