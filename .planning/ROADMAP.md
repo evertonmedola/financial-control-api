@@ -176,11 +176,20 @@ Plans:
   2. A user can request a single consolidated balance across all of their accounts (JSON).
   3. A user can request a month-over-month comparison (JSON) showing spending deltas per category.
 
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
+**Wave 1**
 
-- [ ] 06-01: TBD
+- [ ] 06-01-PLAN.md — Tracer: category/period spending summary end-to-end (REP-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 06-02-PLAN.md — Consolidated net balance (REP-02) + month-over-month category comparison (REP-03)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 06-03-PLAN.md — Cross-tenant isolation suite, full regression, security-review checklist close-out
 
 ### Phase 7: Containerization
 
