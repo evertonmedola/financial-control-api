@@ -20,10 +20,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-14)
+See: .planning/PROJECT.md (updated 2026-09-22)
 
 **Core value:** A API funciona localmente, com segurança tratada como requisito central (não como extra), e evolui em etapas incrementais claras até chegar a um deploy AWS completo e auditável.
-**Current focus:** Phase 05 — Budgets
+**Current focus:** Phase 06 — Reports
 
 ## Current Position
 
@@ -125,6 +125,8 @@ None yet.
 - Phase 9 (CI/CD): OIDC role scoping needs careful IAM policy design — a recurring failure mode noted in research pitfalls.
 - [Phase 4, non-blocking] No dedicated regression test exists for the PATCH-racing-DELETE interleaving that CR-01 fixed (`TransactionsService.update()`), unlike the equivalent DELETE-vs-DELETE case which has one. The mitigation is confirmed correct in source; a follow-up test would guard against a future regression of this exact class of bug.
 - Local dev note (not a code issue): default `PORT=3000` can collide with an unrelated Docker container on this machine (a separate personal project, `medolai-api`) — if `npm run start` fails with `EADDRINUSE`, override with `PORT=<free-port> npm run start` rather than assuming the app is broken.
+- [Phase 5, non-blocking] No dedicated regression test proves an INCOME transaction posted against a DESPESA-category budget is excluded from `spent` (the `type = EXPENSE` filter in `sumByCategoryExcludingTransfers` is correct by inspection and by the passing transfer-exclusion e2e test, but that specific INCOME-vs-DESPESA case has no test of its own).
+- Repo has no `origin` git remote configured — `workflow.use_worktrees` was set to `false` (2026-09-22) since the harness-worktree fork-base check can never resolve `origin/HEAD` without one. All phase execution now runs sequentially on `master` in the main checkout.
 
 ## Deferred Items
 

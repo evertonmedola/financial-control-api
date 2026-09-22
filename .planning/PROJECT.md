@@ -18,10 +18,10 @@ A API funciona localmente, com segurança tratada como requisito central (não c
 - ✓ Categorias de receita/despesa customizáveis pelo usuário — Phase 3
 - ✓ Lançamento de transações (receita/despesa) vinculadas a conta e categoria — Phase 4
 - ✓ Transferências entre contas — Phase 4
+- ✓ Orçamento mensal por categoria com cálculo de consumido/restante — Phase 5
 
 ### Active
 
-- [ ] Orçamento mensal por categoria com cálculo de consumido/restante
 - [ ] Relatórios (JSON): resumo por categoria/período, saldo consolidado, comparação entre meses
 - [ ] Containerização com Docker (multi-stage build)
 - [ ] Infraestrutura AWS: ECS Fargate atrás de ALB, RDS (PostgreSQL), Secrets Manager
@@ -80,6 +80,9 @@ A API funciona localmente, com segurança tratada como requisito central (não c
 | Transferências são uma entidade separada de transações no nível de endpoint (`POST /transfers`, sem `PATCH`), mas a mesma tabela `transactions` com `type=transfer` e `categoryId` sempre `null` (D-01/D-02/D-03) | Exclusão estrutural de transferências dos totais de categoria via CHECK constraint no Postgres, não por convenção de código | ✓ Shipped Phase 4 |
 | Todo write de saldo de conta passa por um único método (`AccountsService.adjustBalance`), sempre com lock `pessimistic_write` dentro de uma `QueryRunner` transaction compartilhada; contas com múltiplas pernas (transferências) são sempre lockadas em ordem ascendente de id, independente da direção | Elimina lost-update e deadlock sob concorrência — provado sob testes de concorrência dedicados (dupla-delete, transferências opostas simultâneas) | ✓ Shipped Phase 4 |
 | Code review pós-execução encontrou e corrigiu 1 bug crítico (CR-01) e 3 warnings (WR-01/02/03): `TransactionsService.update()`/`AccountsService.update()`/`remove()` faziam um read-then-full-save desprotegido que podia ressuscitar uma linha concorrentemente soft-deletada (mesma classe de bug que `remove()` já prevenia via lock); UUID com casing misto podia escapar da guarda de self-transfer; `adjustBalance()` não tinha teto de overflow para `numeric(12,2)` | Todos os 4 corrigidos via update condicional escopado (`repository.update({...,deletedAt:IsNull()}, dto)` com `affected===0` → 404) antes do fechamento da fase; suíte completa re-executada limpa (50/50 unit, 130/130 e2e). Um gap não-bloqueante permanece: nenhum teste de regressão dedicado para a interleaving específica PATCH-vs-DELETE (mitigação em código confirmada, teste ainda não escrito) | ✓ Shipped Phase 4 — ver `04-REVIEW.md`/`04-REVIEW-FIX.md`/`04-SECURITY.md` |
+| Cálculo de `spent`/`remaining`/`overBudget` via `SUM(...) GROUP BY` filtrado por `type = EXPENSE` (não apenas `!= TRANSFER`) | Uma transação de RECEITA lançada contra uma categoria de DESPESA (ex.: reembolso registrado como receita) não deve inflar o gasto do orçamento — nada no schema impede esse mismatch entre `transaction.type` e `category.type`, então o filtro precisa ser explícito | ✓ Shipped Phase 5 |
+| Guarda de corpo vazio no `PATCH` (`hasNoUpdatableFields()`, `src/common/patch.util.ts`) derivada das próprias chaves do DTO, nunca uma lista de campos mantida à mão | Uma lista hardcoded ficaria dessincronizada na primeira vez que um campo opcional fosse adicionado a um DTO — o `update()` faria um no-op silencioso (200 + nada mudou) em vez de um erro, perda de dados pior que o crash que a guarda substituiu | ✓ Shipped Phase 5 — reutilizado por `BudgetsService` e `TransactionsService` |
+| Code review pós-execução (loop de 3 iterações, cap atingido) encontrou e corrigiu 2 bugs críticos (agregação de gasto sem filtro de tipo; `limit: null` no PATCH de budget contornava validação) e 1 warning (race TOCTOU no `BudgetsService.update()`) — a própria correção do warning introduziu uma regressão (corpo `{}` no PATCH crashava com 500 via `UpdateValuesMissingError` do TypeORM), corrigida na iteração seguinte, que por sua vez revelou o mesmo bypass de `null` em `UpdateTransactionDto.date`/`description` (bug pré-existente da Phase 4, não coberto até agora) | Cada correção foi re-verificada com testes reais contra o Postgres, não apenas leitura de código; a fase só foi selada após uma re-revisão confirmatória final retornar limpa (0 crítico, 0 warning) | ✓ Shipped Phase 5 — ver `05-REVIEW.md`/`05-REVIEW-FIX.md` |
 
 ## Evolution
 
@@ -99,4 +102,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-14 after Phase 4*
+*Last updated: 2026-09-22 after Phase 5*
