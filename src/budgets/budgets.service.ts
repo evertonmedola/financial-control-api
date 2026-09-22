@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
@@ -9,6 +10,7 @@ import { CategoryType } from '../categories/entities/category.entity';
 import { CategoriesService } from '../categories/categories.service';
 import { TransactionsService } from '../transactions/transactions.service';
 import { CreateBudgetDto } from './dto/create-budget.dto';
+import { UpdateBudgetDto } from './dto/update-budget.dto';
 import { BudgetStatusDto } from './dto/budget-status.dto';
 import { Budget } from './entities/budget.entity';
 
@@ -42,6 +44,45 @@ export class BudgetsService {
 
     const budget = this.budgetsRepository.create({ ...dto, userId });
     return this.saveOrThrowConflict(budget);
+  }
+
+  // 404, never 403, when the budget doesn't exist or belongs to another
+  // user — mirrors CategoriesService's ownership-check philosophy
+  // (Pitfall 3, IDOR).
+  async findOne(userId: string, id: string): Promise<Budget> {
+    const budget = await this.budgetsRepository.findOne({
+      where: { id, userId, deletedAt: IsNull() },
+    });
+    if (!budget) {
+      throw new NotFoundException();
+    }
+    return budget;
+  }
+
+  // Ownership check (findOne) happens before mutation. `dto` can never
+  // carry `categoryId` — the DTO layer already excludes it (D-02). Reuses
+  // the same conflict-translating helper create() uses, though a
+  // `limit`-only update can never actually collide with the
+  // (userId, categoryId) unique index since categoryId never changes here
+  // — kept for structural consistency with CategoriesService.update's
+  // pattern.
+  async update(
+    userId: string,
+    id: string,
+    dto: UpdateBudgetDto,
+  ): Promise<Budget> {
+    const budget = await this.findOne(userId, id);
+    Object.assign(budget, dto);
+    return this.saveOrThrowConflict(budget);
+  }
+
+  // D-07: soft delete only. Never .delete()/.remove() on the repository —
+  // frees the (userId, categoryId) pair for reuse via the partial unique
+  // index.
+  async remove(userId: string, id: string): Promise<void> {
+    const budget = await this.findOne(userId, id);
+    budget.deletedAt = new Date();
+    await this.budgetsRepository.save(budget);
   }
 
   // D-06: this IS the `GET /budgets` listing — it only ever returns
@@ -92,9 +133,9 @@ export class BudgetsService {
     return { start, end };
   }
 
-  // Shared by create() (and Task 2's update()): both write paths hit the
-  // same UQ_budgets_user_id_category_id partial unique index, so both need
-  // the identical Postgres-error-to-409 translation.
+  // Shared by create() and update(): both write paths hit the same
+  // UQ_budgets_user_id_category_id partial unique index, so both need the
+  // identical Postgres-error-to-409 translation.
   private async saveOrThrowConflict(budget: Budget): Promise<Budget> {
     try {
       return await this.budgetsRepository.save(budget);

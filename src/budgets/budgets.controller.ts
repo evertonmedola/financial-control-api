@@ -1,10 +1,21 @@
-import { Body, Controller, Post, UseGuards, Get } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BudgetsService } from './budgets.service';
 import { BudgetResponseDto } from './dto/budget-response.dto';
 import { BudgetStatusDto } from './dto/budget-status.dto';
 import { CreateBudgetDto } from './dto/create-budget.dto';
+import { UpdateBudgetDto } from './dto/update-budget.dto';
 
 // Guard applied at controller level (not per-route), since every Budgets
 // route requires authentication — mirrors CategoriesController.
@@ -30,6 +41,35 @@ export class BudgetsController {
     return this.budgetsService.findAllWithStatus(userId);
   }
 
-  // Task 2 (05-01-PLAN.md) adds: GET /budgets/:id, PATCH /budgets/:id,
-  // DELETE /budgets/:id.
+  // Plain REST resource-by-id lookup, by the budget's own id — NOT a
+  // per-category lookup (D-06 only prohibits a
+  // GET /budgets/by-category/:categoryId-style endpoint).
+  @Get(':id')
+  async findOne(
+    @CurrentUser() userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<BudgetResponseDto> {
+    const budget = await this.budgetsService.findOne(userId, id);
+    return BudgetResponseDto.fromEntity(budget);
+  }
+
+  @Patch(':id')
+  async update(
+    @CurrentUser() userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateBudgetDto,
+  ): Promise<BudgetResponseDto> {
+    const budget = await this.budgetsService.update(userId, id, dto);
+    return BudgetResponseDto.fromEntity(budget);
+  }
+
+  // Mirrors every other domain module's empty-envelope delete convention.
+  @Delete(':id')
+  async remove(
+    @CurrentUser() userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<Record<string, never>> {
+    await this.budgetsService.remove(userId, id);
+    return {};
+  }
 }

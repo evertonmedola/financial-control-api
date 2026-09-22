@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -94,7 +94,7 @@ describe('BudgetsService', () => {
       await expect(service.create(userId, dto)).rejects.toBeInstanceOf(
         BadRequestException,
       );
-      expect(budgetsRepository.save).not.toHaveBeenCalled();
+      expect(budgetsRepository.save.mock.calls.length).toBe(0);
     });
   });
 
@@ -122,8 +122,8 @@ describe('BudgetsService', () => {
       ).toHaveBeenCalledWith(
         userId,
         ['category-1'],
-        expect.stringMatching(/^\d{4}-\d{2}-01$/) as unknown as string,
-        expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) as unknown as string,
+        expect.stringMatching(/^\d{4}-\d{2}-01$/),
+        expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       );
       expect(result).toEqual([
         {
@@ -145,6 +145,67 @@ describe('BudgetsService', () => {
       expect(
         transactionsService.sumByCategoryExcludingTransfers,
       ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findOne', () => {
+    it('throws NotFoundException (not a generic error) when the repository returns null (error case)', async () => {
+      budgetsRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.findOne('user-id', 'missing-budget-id'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('returns the budget when the repository finds a userId-scoped match (happy path)', async () => {
+      const budget = { id: 'budget-id', userId: 'user-id' } as Budget;
+      budgetsRepository.findOne.mockResolvedValue(budget);
+
+      const result = await service.findOne('user-id', 'budget-id');
+
+      expect(result).toBe(budget);
+    });
+  });
+
+  describe('update', () => {
+    it('finds by ownership then persists the merged dto via saveOrThrowConflict (happy path, D-02)', async () => {
+      const budget = {
+        id: 'budget-id',
+        userId: 'user-id',
+        limit: '200.00',
+      } as Budget;
+      budgetsRepository.findOne.mockResolvedValue(budget);
+      budgetsRepository.save.mockImplementation((entity) =>
+        Promise.resolve(entity as Budget),
+      );
+
+      const result = await service.update('user-id', 'budget-id', {
+        limit: '400.00',
+      });
+
+      expect(result.limit).toBe('400.00');
+      expect(budgetsRepository.save.mock.calls[0]).toEqual([budget]);
+    });
+  });
+
+  describe('remove', () => {
+    it('sets deletedAt and calls .save() — never a hard-delete repository method (D-07)', async () => {
+      const budget = {
+        id: 'budget-id',
+        userId: 'user-id',
+        deletedAt: null,
+      } as Budget;
+      budgetsRepository.findOne.mockResolvedValue(budget);
+      budgetsRepository.save.mockImplementation((entity) =>
+        Promise.resolve(entity as Budget),
+      );
+
+      await service.remove('user-id', 'budget-id');
+
+      expect(budget.deletedAt).toBeInstanceOf(Date);
+      expect(budgetsRepository.save.mock.calls[0]).toEqual([budget]);
+      expect(budgetsRepository.delete.mock.calls.length).toBe(0);
+      expect(budgetsRepository.remove.mock.calls.length).toBe(0);
     });
   });
 });
