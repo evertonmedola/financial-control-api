@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 5
+current_phase: 05
 current_phase_name: Budgets
-status: planning
-stopped_at: Phase 5 context gathered
-last_updated: "2026-09-14T15:05:50.560Z"
-last_activity: 2026-09-14
-last_activity_desc: Phase 04 complete, transitioned to Phase 5
-state_head: 6fa10a0be5efbc9d59d06b5493aa007967ba4226
+status: executing
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-09-22T21:56:23.984Z"
+last_activity: 2026-09-22
+last_activity_desc: Phase 05 execution started
+state_head: e427f8e197feab8b8560f932e8bdddb56480f884
 progress:
   total_phases: 9
   completed_phases: 0
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 17
+  completed_plans: 16
   percent: 0
 ---
 
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-09-14)
 
 ## Current Position
 
-Phase: 5 — Budgets
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-09-14 — Phase 04 complete, transitioned to Phase 5
+Phase: 05 (Budgets) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-09-22 — Phase 05 execution started
 
 Progress: [████████████████████] 8/8 plans ([░░░░░░░░░░] 0%)
 
@@ -73,6 +73,7 @@ Progress: [████████████████████] 8/8 pla
 | Phase 03 P03-03 | 12min | 2 tasks | 1 files |
 | Phase 04 P03 | 40min | 2 tasks | 9 files |
 | Phase 04 P04 | 14min | 2 tasks | 2 files |
+| Phase 05 P01 | 45min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,8 @@ Recent decisions affecting current work:
 - [Phase 04]: [Phase 04]: [Phase 04-03]: TransfersService.remove locks the transfer row via type: TransactionType.TRANSFER in its WHERE clause, symmetric to 04-02's type: In([INCOME, EXPENSE]) exclusion — a transaction id 404s through /transfers/:id and vice versa
 - [Phase 04]: Phase 4 close-out: integration-level precision proof (12 sequential alternating transactions, exact 40.62 balance), full 177-test combined regression suite green, security-review checklist applied to Transactions/Transfers + adjustBalance with explicit concurrency-mitigation re-verification — Mirrors 03-03's close-out pattern; no production code changes needed, checklist found no new gaps beyond what 04-01/04-02/04-03 already closed
 - [Phase 04]: UAT re-verification (post-review) found 04-VERIFICATION.md was stale — written before the 4 code-review fixes (CR-01/WR-01/02/03) landed. Re-verified live: all 4 fixes confirmed in source, full suite re-run clean (50/50 unit, 130/130 e2e), VERIFICATION.md and covered_digest updated to reflect fixed state, and a retroactive 04-SECURITY.md incorporated the 4 review findings as threats T-04-19..T-04-22 (all closed) alongside the plan-time STRIDE register — threats_open: 0
+- [Phase 05]: [Phase 05-01]: Budgets tracer proves TransactionsService.sumByCategoryExcludingTransfers (first grouped read-side aggregation) correctly excludes TRANSFER rows from category spend, reusing Phase 4's TXN-04 exclusion rule in a read path for the first time
+- [Phase 05]: [Phase 05-01]: Fixed test-authoring bug — literal '11111111-1111-1111-1111-111111111111' is not a valid UUID (wrong variant nibble); replaced with a proper v4 UUID in the nonexistent-categoryId IDOR test
 
 ### Pending Todos
 
@@ -130,6 +133,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-14T15:05:50.400Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-budgets/05-CONTEXT.md
+Last session: 2026-09-22T21:56:23.849Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None

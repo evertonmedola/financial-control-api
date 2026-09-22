@@ -153,12 +153,12 @@ Plans:
   2. A user can view a category's consumed and remaining amounts for the month (`remaining = limit - spent`), correctly excluding transfers.
   3. When spending exceeds the limit, the response explicitly signals an over-budget state rather than silently returning a negative number.
 
-**Plans**: 2 plans
+**Plans**: 1/2 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — Tracer + full CRUD: set a budget, see consumed/remaining/overBudget for the current month with transfers excluded (D-01..D-08)
+- [x] 05-01-PLAN.md — Tracer + full CRUD: set a budget, see consumed/remaining/overBudget for the current month with transfers excluded (D-01..D-08)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -247,7 +247,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 2. Accounts | 3/3 | Complete    | 2026-09-12 |
 | 3. Categories | 3/3 | Complete    | 2026-09-13 |
 | 4. Transactions & Transfers | 4/4 | Complete    | 2026-09-14 |
-| 5. Budgets | 0/TBD | Not started | - |
+| 5. Budgets | 1/2 | In Progress|  |
 | 6. Reports | 0/TBD | Not started | - |
 | 7. Containerization | 0/TBD | Not started | - |
 | 8. AWS Infrastructure | 0/TBD | Not started | - |
