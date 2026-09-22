@@ -1,4 +1,4 @@
-import { IsOptional, Matches } from 'class-validator';
+import { Matches, ValidateIf } from 'class-validator';
 
 /**
  * PATCH /budgets/:id — `limit` only. D-02: unlike Accounts' `balance`,
@@ -12,7 +12,19 @@ import { IsOptional, Matches } from 'class-validator';
  * manual guard code is needed here.
  */
 export class UpdateBudgetDto {
-  @IsOptional()
+  // CR-02: @IsOptional() alone lets `{"limit": null}` through untouched —
+  // class-validator's IsOptional short-circuits ALL subsequent validators
+  // (including @Matches) whenever the value is `null` OR `undefined`, and
+  // class-validator ANDs every CONDITIONAL_VALIDATION metadata on a
+  // property together — so pairing @IsOptional() with an additional
+  // @ValidateIf() would NOT help, since IsOptional's own null-check would
+  // still short-circuit the AND to `false` for a null value. Instead,
+  // @ValidateIf() replaces @IsOptional() entirely: it only skips validation
+  // when `limit` is absent (`undefined`), leaving `null` to reach @Matches,
+  // whose underlying `matches()` requires `typeof value === 'string'` and
+  // therefore correctly fails (400) instead of reaching the NOT NULL
+  // `limit` column and crashing with an unhandled 500.
+  @ValidateIf((_dto, value) => value !== undefined)
   @Matches(/^(?!0+(\.0{1,2})?$)\d{1,10}(\.\d{1,2})?$/, {
     message:
       'limit deve ser uma string decimal positiva, sem sinal, com até 2 casas decimais, e não pode ser zero',
