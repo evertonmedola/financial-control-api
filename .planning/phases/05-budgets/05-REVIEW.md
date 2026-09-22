@@ -1,8 +1,8 @@
 ---
 phase: 05-budgets
-reviewed: 2026-09-22T00:00:00Z
+reviewed: 2026-09-22T23:10:00Z
 depth: standard
-files_reviewed: 16
+files_reviewed: 21
 files_reviewed_list:
   - src/app.module.ts
   - src/budgets/budgets.controller.ts
@@ -16,145 +16,65 @@ files_reviewed_list:
   - src/budgets/entities/budget.entity.ts
   - src/common/decimal.util.spec.ts
   - src/common/decimal.util.ts
+  - src/common/patch.util.ts
+  - src/common/patch.util.spec.ts
   - src/database/migrations/1789600000000-CreateBudgets.ts
+  - src/transactions/dto/update-transaction.dto.ts
+  - src/transactions/dto/update-transaction.dto.spec.ts
   - src/transactions/transactions.service.spec.ts
   - src/transactions/transactions.service.ts
   - test/budgets.e2e-spec.ts
   - test/budgets-cross-tenant.e2e-spec.ts
+  - test/transactions.e2e-spec.ts
 findings:
-  critical: 2
-  warning: 1
-  info: 2
-  total: 5
-status: issues_found
+  critical: 0
+  warning: 0
+  info: 1
+  total: 1
+status: clean
 ---
 
-# Phase 05: Code Review Report
+# Phase 05: Code Review Report (Final confirmatory re-review, post 3-iteration auto-fix loop)
 
-**Reviewed:** 2026-09-22T00:00:00Z
+**Reviewed:** 2026-09-22T23:10:00Z
 **Depth:** standard
-**Files Reviewed:** 16
-**Status:** issues_found
+**Files Reviewed:** 21
+**Status:** clean
 
 ## Summary
 
-The Budgets module is well-structured and follows the codebase's established conventions closely (decimal-string money handling, ownership-chain IDOR checks, soft-delete, partial unique index + Postgres-error-to-409 translation). The cross-tenant e2e suite (`test/budgets-cross-tenant.e2e-spec.ts`) is thorough and I found no IDOR gaps in it.
+This is the final confirmatory re-review after the auto-fix loop's cap (3 iterations) was reached. The last fix pass targeted two findings from the prior review (`05-REVIEW.md`, iteration 3):
 
-However, two correctness defects surfaced that undermine the feature's core value proposition (accurate budget tracking) and are not covered by any existing test:
+- **CR-01** — `PATCH /transactions/:id` with `{"date": null}` or `{"description": null}` crashed with an unhandled 500 (Postgres `23502` not-null violation), because `UpdateTransactionDto` used plain `@IsOptional()`, which lets an explicit `null` bypass all subsequent validators.
+- **WR-01** — the empty-PATCH-body guards in `BudgetsService.update()` and `TransactionsService.update()` were hand-enumerated per DTO field, risking silent data-loss-by-omission if a future optional field were added without updating the guard in lockstep.
 
-1. The `spent` aggregation used by `GET /budgets` counts more than expenses — it only excludes `TRANSFER` rows, not `INCOME` rows, so an income transaction mis-tagged (or legitimately tagged, e.g. a refund) against a `DESPESA` category inflates the reported spend.
-2. `PATCH /budgets/:id` with `{"limit": null}` bypasses the DTO's regex validation entirely (a documented `class-validator` `@IsOptional()` behavior) and reaches the database, producing an unhandled 500 instead of a controlled 400.
+**Both are genuinely resolved.** I did not take the fix commits' claims at face value — I independently verified each mechanism end to end:
 
-A third, lower-severity concurrency gap was found in `BudgetsService.update()`, which mirrors `CategoriesService.update()`'s read-then-mutate-then-save pattern instead of the scoped conditional-update pattern `TransactionsService.update()` deliberately adopted (per its own inline "CR-01" comment) to close exactly this race.
+**CR-01 verification:**
+- `src/transactions/dto/update-transaction.dto.ts:32,39` — both `description` and `date` now use `@ValidateIf((_dto, value) => value !== undefined)` instead of `@IsOptional()`, mirroring the already-hardened `UpdateBudgetDto` pattern (CR-02, an earlier iteration). This means `null` reaches `@IsString()`/`@IsDateString()` and fails validation with a `400`, instead of short-circuiting through untouched.
+- Ran the real e2e suite against the real Postgres instance: `PATCH /transactions/:id` with `{"date": null}` and `{"description": null}` both now return `400`, not `500` — confirmed via `test/transactions.e2e-spec.ts`'s `'PATCH /transactions/:id with {"date": null} or {"description": null} returns 400, not a 500 (regression, CR-01)'` test, and `src/transactions/dto/update-transaction.dto.spec.ts`'s direct `plainToInstance` + `validate()` unit coverage for both fields.
+- Confirmed the previously-reported bypass path is now unreachable: `hasNoUpdatableFields()` no longer has to distinguish `null` from `undefined` for correctness, because `null` can no longer arrive at the service layer at all — it is rejected one layer earlier, at validation.
 
-## Critical Issues
+**WR-01 verification:**
+- `src/common/patch.util.ts` now exports a single `hasNoUpdatableFields(dto: object): boolean` (`Object.values(dto).every((v) => v === undefined)`), imported by both `BudgetsService.update()` (`src/budgets/budgets.service.ts:93`) and `TransactionsService.update()` (`src/transactions/transactions.service.ts:128`), replacing both previous hand-enumerated conjunctions. This also resolves the code-duplication `IN-01` info item from the prior review as a side effect.
+- I did not just trust the doc-comment's claim that "every declared class field is already an own enumerable property at construction time" under this project's `ES2023` target — I verified it empirically, twice: (1) compiling a minimal `class Foo { limit?: string }` with `tsc --target ES2023` and confirming `Object.keys(new Foo())` includes `'limit'` with value `undefined`; (2) running `plainToInstance(UpdateBudgetDto, {})` through the project's actual installed `class-transformer`, confirming the resulting instance still has `limit` as an own key with value `undefined`. Both confirm `hasNoUpdatableFields({})` and `hasNoUpdatableFields(dto-with-all-undefined-fields)` behave identically, so the empty-object short-circuit test in `patch.util.spec.ts` is representative of real request handling, not just an artifact of the test's own object literal.
+- Also verified the inverse risk directly against TypeORM's own source (`node_modules/typeorm/query-builder/UpdateQueryBuilder.js:330-336`): `createUpdateExpression()` explicitly filters `undefined`-valued keys out of the `SET` clause before building the query ("it doesn't make sense to update undefined properties, so just skip them"), confirming that a DTO instance with e.g. `{ description: 'Feira', date: undefined }` passed to `Repository.update()` correctly patches only `description` and never overwrites `date` with `NULL`. This closes a plausible adjacent bug (an update silently nulling out an omitted sibling field) that the fix pass did not explicitly call out but that its correctness depends on.
+- Ran the test suites live rather than trusting them to have been run: `npx jest src/budgets src/transactions src/common` → 5 suites / 46 tests passed. `npx jest --config ./test/jest-e2e.json test/budgets.e2e-spec.ts test/budgets-cross-tenant.e2e-spec.ts test/transactions.e2e-spec.ts` → 3 suites / 39 tests passed against the real Postgres instance, including both the empty-body and null-field regression tests.
 
-### CR-01: `spent` total wrongly includes non-expense transactions
-
-**File:** `src/transactions/transactions.service.ts:210-212`
-
-**Issue:** `sumByCategoryExcludingTransfers` (the sole data source for Budgets' `spent`/`remaining`/`overBudget` fields, per `BudgetsService.findAllWithStatus`) filters out `TRANSFER` rows only:
-
-```ts
-.andWhere('transaction.type != :transferType', {
-  transferType: TransactionType.TRANSFER,
-})
-```
-
-It does **not** filter to `type = EXPENSE`. Nothing elsewhere in the codebase enforces that a transaction's `type` (income/expense) matches the referenced category's `type` (receita/despesa) — `TransactionsService.create()` (lines 30-45) only validates category *ownership* via `categoriesService.findOne`, never `category.type` against `dto.type`. A budget can only be created for a `DESPESA` category (`BudgetsService.create`, line 39), but any `INCOME` transaction can still be posted against that same `DESPESA` category (e.g. a refund logged as income under an expense category — a very plausible real-world entry for a personal-finance app). When that happens, the income amount is added straight into the SUM, inflating `spent` and potentially flipping `overBudget` to `true` incorrectly, because `Transaction.amount` is always stored as an unsigned magnitude (confirmed via `CreateTransactionDto.amount`'s no-sign regex and `TransactionsService.create`'s sign-only-from-`type` delta logic) — there is no sign to net the income back out.
-
-This is untested: neither `test/budgets.e2e-spec.ts` nor `transactions.service.spec.ts`'s `sumByCategoryExcludingTransfers` tests exercise a mixed income/expense category.
-
-**Fix:**
-```ts
-.andWhere('transaction.type = :expenseType', {
-  expenseType: TransactionType.EXPENSE,
-})
-```
-(replacing the `!= :transferType` clause), or alternatively enforce `category.type === dto.type` mapping consistency at transaction-creation time in `TransactionsService.create()` so a despesa category can never receive an income row in the first place. The query-level fix is the more defensive one since it doesn't depend on that invariant being introduced/maintained elsewhere.
-
-### CR-02: `PATCH /budgets/:id` with `limit: null` bypasses validation and crashes with 500 instead of 400
-
-**File:** `src/budgets/dto/update-budget.dto.ts:15-20`
-
-**Issue:**
-```ts
-@IsOptional()
-@Matches(/^(?!0+(\.0{1,2})?$)\d{1,10}(\.\d{1,2})?$/, { ... })
-limit?: string;
-```
-`class-validator`'s `@IsOptional()` skips **all** subsequent validators for a property whenever the value is `null` **or** `undefined` (confirmed in `node_modules/class-validator/cjs/decorator/common/IsOptional.js`: the guard is `value !== null && value !== undefined`). A client request body of `{"limit": null}` therefore passes the global `ValidationPipe` untouched — `whitelist`/`forbidNonWhitelisted` don't reject it because `limit` is a declared property, and `@Matches` never runs.
-
-The `null` then flows through `BudgetsController.update` → `BudgetsService.update`:
-```ts
-const budget = await this.findOne(userId, id);
-Object.assign(budget, dto);            // budget.limit = null
-return this.saveOrThrowConflict(budget);
-```
-`budgets.limit` is a NOT NULL `numeric(12,2)` column (see `1789600000000-CreateBudgets.ts:12` and the entity's `@Column({ type: 'decimal', ... })` with no `nullable: true`). The resulting `save()` fails with Postgres error code `23502` (not-null violation), which `isUniqueViolation` doesn't recognize (it only matches `23505` + the specific constraint name), so the raw `QueryFailedError` is rethrown and surfaces to the client as an unhandled 500 (sanitized by `HttpExceptionFilter`, but still the wrong status code and an uncontrolled code path for ordinary malformed client input).
-
-**Fix:** Add an explicit type/`null` guard so `null` is treated as an invalid value rather than "absent", e.g.:
-```ts
-@IsOptional()
-@ValidateIf((_, value) => value !== null)
-@Matches(/^(?!0+(\.0{1,2})?$)\d{1,10}(\.\d{1,2})?$/, { ... })
-limit?: string;
-```
-or simply add `@IsNotEmpty()`-style narrowing / a custom validator that rejects `null` explicitly before `@IsOptional()`'s short-circuit applies. The simplest fix: don't rely on `@IsOptional()` alone — pair it with a decorator that still runs on `null` (e.g. `@ValidateIf(o => o.limit !== undefined)` combined with `@Matches`, so `null` is validated as a bad string and correctly 400s).
-
-## Warnings
-
-### WR-01: `BudgetsService.update()` has a TOCTOU race that can resurrect a soft-deleted budget
-
-**File:** `src/budgets/budgets.service.ts:69-77`
-
-**Issue:**
-```ts
-async update(userId: string, id: string, dto: UpdateBudgetDto): Promise<Budget> {
-  const budget = await this.findOne(userId, id);
-  Object.assign(budget, dto);
-  return this.saveOrThrowConflict(budget);
-}
-```
-`findOne` reads the row with `deletedAt: IsNull()`, giving an in-memory entity with `deletedAt = null`. If a concurrent `DELETE /budgets/:id` commits between that read and this method's `save()` call, `save()` (TypeORM `Repository.save` on an entity carrying its primary key) issues a full-column `UPDATE ... WHERE id = :id`, writing back the entity's in-memory `deletedAt = null` — silently undoing the concurrent soft-delete and reviving the row with the new `limit`. This is the exact class of bug `TransactionsService.update()` deliberately avoids (see its own inline comment: *"if a concurrent DELETE soft-deletes this row between the findOne() above and this write, `affected` is 0 and we fail with 404 instead of silently resurrecting the row (CR-01)"*), but `BudgetsService.update()` was modeled on `CategoriesService.update()`'s older, race-prone pattern instead.
-
-The window is narrow (single request race) and there's no test exercising it, but it directly violates D-07's "soft delete only, never implicitly reversed" intent.
-
-**Fix:** Use a scoped conditional update mirroring `TransactionsService.update()`:
-```ts
-async update(userId: string, id: string, dto: UpdateBudgetDto): Promise<Budget> {
-  const result = await this.budgetsRepository.update(
-    { id, userId, deletedAt: IsNull() },
-    dto,
-  );
-  if (result.affected === 0) {
-    throw new NotFoundException();
-  }
-  return this.findOne(userId, id);
-}
-```
-(Still routed through `saveOrThrowConflict`'s translation if a `limit`-only update could realistically collide — today it can't, per the existing comment, but keep the 23505 guard if `categoryId` ever becomes editable again.)
+No new BLOCKER or WARNING was found in the code touched by this fix pass, or elsewhere in the Budgets phase's full scope (entity, migration, DTOs, controller, module wiring, `decimal.util`, and the Transactions read/update paths this phase depends on). One pre-existing INFO item carries over unresolved (below); it was explicitly out of scope for this fix pass and does not block shipping.
 
 ## Info
 
-### IN-01: `getCurrentMonthBounds()` reads `new Date()` directly, complicating deterministic testing
+### IN-01 (carryover from prior iterations, still open): `sumByCategoryExcludingTransfers`'s `type = EXPENSE` filter still has no dedicated regression test
 
-**File:** `src/budgets/budgets.service.ts:125-134`
+**File:** `src/transactions/transactions.service.ts:230-232`, `src/transactions/transactions.service.spec.ts`
 
-**Issue:** The current-month window is derived from a fresh `new Date()` on every call with no injectable clock. `budgets.service.spec.ts`'s `findAllWithStatus` test only asserts the date strings loosely via regex (`expect.stringMatching(/^\d{4}-\d{2}-01$/)`), rather than pinning an exact month — acceptable for now, but any future test needing to assert an exact month boundary (e.g. a "first vs last day of month" edge case) will need to fake global time (`jest.useFakeTimers`) or refactor this into an injectable clock.
+**Issue:** No test posts an `INCOME` transaction against a `DESPESA`-category budget to prove it is excluded from `spent` (the scenario the `type = :expenseType` clause exists to handle — an income row, e.g. a refund, posted against an expense category, which has no sign to net back out of the `SUM` since `Transaction.amount` is always an unsigned magnitude). The implementation is still correct by inspection and by the `andWhere('transaction.type = :expenseType', ...)` clause visible in the query builder; this is purely a missing-regression-test gap, not a behavioral defect, and was already flagged and explicitly deferred in two prior review iterations.
 
-**Fix:** Not urgent; if finer-grained date-boundary tests are added later, extract a `Clock`/`now()` provider so `getCurrentMonthBounds` can be tested without relying on the real wall clock.
-
-### IN-02: Near-duplicate `isUniqueViolation`/`saveOrThrowConflict` implementations across services
-
-**File:** `src/budgets/budgets.service.ts:139-164` (duplicated from `src/categories/categories.service.ts:79-108`)
-
-**Issue:** `BudgetsService` and `CategoriesService` each carry byte-for-byte-similar private helpers (`saveOrThrowConflict`, `isUniqueViolation`) differing only in the constraint name and message string. This is a maintainability nit, not a bug — but a shared `PostgresConflictHelper`/decorator would remove the duplication and the risk of the two copies drifting (e.g. one getting the CR-01 fix pattern and the other not, as happened between `TransactionsService.update()` and `BudgetsService.update()`/`CategoriesService.update()` — see WR-01).
-
-**Fix:** Extract a shared utility, e.g. `src/common/postgres-conflict.util.ts` exporting `saveOrThrowConflict(repo, entity, constraintName, message)`, and have both services call it.
+**Fix:** Add a unit test asserting the `andWhere` call includes `{ expenseType: TransactionType.EXPENSE }` (already partially exercisable via the existing `queryBuilderMock`), or an e2e case posting an `INCOME` transaction against a `DESPESA` category and confirming it does not affect that category's `spent` in `GET /budgets`.
 
 ---
 
-_Reviewed: 2026-09-22T00:00:00Z_
+_Reviewed: 2026-09-22T23:10:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
