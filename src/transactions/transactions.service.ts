@@ -185,8 +185,12 @@ export class TransactionsService {
   // Budgets' first grouped read-side aggregation query in this codebase
   // (05-PATTERNS.md's "No Analog Found" note) — a single grouped query,
   // never an N+1 per-category loop (PITFALLS.md line 224). The
-  // `type != TRANSFER` clause is TXN-04's exclusion rule reused in a read
-  // path for the first time (BUD-02, D-08's `spent` source).
+  // `type = EXPENSE` clause (CR-01) restricts the sum to actual expense
+  // rows — not just "not a transfer" — because nothing elsewhere enforces
+  // that a transaction's `type` matches its category's `type`: an INCOME
+  // row (e.g. a refund) can be posted against a DESPESA category, and
+  // since `Transaction.amount` is always stored as an unsigned magnitude
+  // there is no sign available to net it back out of the SUM.
   async sumByCategoryExcludingTransfers(
     userId: string,
     categoryIds: string[],
@@ -207,8 +211,8 @@ export class TransactionsService {
       .andWhere('transaction.categoryId IN (:...categoryIds)', {
         categoryIds,
       })
-      .andWhere('transaction.type != :transferType', {
-        transferType: TransactionType.TRANSFER,
+      .andWhere('transaction.type = :expenseType', {
+        expenseType: TransactionType.EXPENSE,
       })
       .andWhere('transaction.date BETWEEN :startDate AND :endDate', {
         startDate,
