@@ -65,3 +65,22 @@ export function isWithinDecimalRange(
   const maxCents = toCents(maxAbsolute);
   return cents <= maxCents && cents >= -maxCents;
 }
+
+/**
+ * Subtracts `b` from `a` exactly (no float drift), returning a decimal
+ * string. Used for Budgets' `remaining = limit - spent` (D-08) — the result
+ * is deliberately NEVER clamped to zero, so an over-budget category yields a
+ * negative decimal string (e.g. "100.00" - "150.00" -> "-50.00").
+ */
+export function subtractDecimalStrings(a: string, b: string): string {
+  return fromCents(toCents(a) - toCents(b));
+}
+
+/**
+ * Returns true when `a` is strictly greater than `b`, compared exactly via
+ * BigInt cents — never a float comparison. Used to derive Budgets'
+ * `overBudget` flag (`spent > limit`, D-08) — exactly-at-limit is `false`.
+ */
+export function isGreaterThanDecimalString(a: string, b: string): boolean {
+  return toCents(a) > toCents(b);
+}

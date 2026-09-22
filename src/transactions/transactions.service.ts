@@ -181,4 +181,43 @@ export class TransactionsService {
       await queryRunner.release();
     }
   }
+
+  // Budgets' first grouped read-side aggregation query in this codebase
+  // (05-PATTERNS.md's "No Analog Found" note) — a single grouped query,
+  // never an N+1 per-category loop (PITFALLS.md line 224). The
+  // `type != TRANSFER` clause is TXN-04's exclusion rule reused in a read
+  // path for the first time (BUD-02, D-08's `spent` source).
+  async sumByCategoryExcludingTransfers(
+    userId: string,
+    categoryIds: string[],
+    startDate: string,
+    endDate: string,
+  ): Promise<Map<string, string>> {
+    // TypeORM's `IN (:...ids)` throws on an empty array — never let an
+    // empty budget list reach the query builder.
+    if (categoryIds.length === 0) {
+      return new Map();
+    }
+
+    const rows = await this.transactionsRepository
+      .createQueryBuilder('transaction')
+      .select('transaction.categoryId', 'categoryId')
+      .addSelect('SUM(transaction.amount)', 'total')
+      .where('transaction.userId = :userId', { userId })
+      .andWhere('transaction.categoryId IN (:...categoryIds)', {
+        categoryIds,
+      })
+      .andWhere('transaction.type != :transferType', {
+        transferType: TransactionType.TRANSFER,
+      })
+      .andWhere('transaction.date BETWEEN :startDate AND :endDate', {
+        startDate,
+        endDate,
+      })
+      .andWhere('transaction.deletedAt IS NULL')
+      .groupBy('transaction.categoryId')
+      .getRawMany<{ categoryId: string; total: string }>();
+
+    return new Map(rows.map((row) => [row.categoryId, row.total]));
+  }
 }

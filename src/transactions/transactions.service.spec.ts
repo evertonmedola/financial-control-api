@@ -16,7 +16,10 @@ describe('TransactionsService', () => {
   let categoriesService: jest.Mocked<Pick<CategoriesService, 'findOne'>>;
   let dataSource: jest.Mocked<Pick<DataSource, 'createQueryRunner'>>;
   let transactionsRepository: jest.Mocked<
-    Pick<Repository<Transaction>, 'find' | 'findOne' | 'save'>
+    Pick<
+      Repository<Transaction>,
+      'find' | 'findOne' | 'save' | 'createQueryBuilder'
+    >
   >;
   let queryRunner: {
     connect: jest.Mock;
@@ -55,6 +58,7 @@ describe('TransactionsService', () => {
       find: jest.fn(),
       findOne: jest.fn(),
       save: jest.fn(),
+      createQueryBuilder: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -285,6 +289,57 @@ describe('TransactionsService', () => {
       );
       expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
       expect(queryRunner.release).toHaveBeenCalled();
+    });
+  });
+
+  describe('sumByCategoryExcludingTransfers', () => {
+    it('resolves the raw aggregation rows into a Map keyed by categoryId (happy path)', async () => {
+      const queryBuilderMock = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([
+          { categoryId: 'category-1', total: '50.00' },
+          { categoryId: 'category-2', total: '75.25' },
+        ]),
+      };
+      transactionsRepository.createQueryBuilder.mockReturnValue(
+        queryBuilderMock as never,
+      );
+
+      const result = await service.sumByCategoryExcludingTransfers(
+        'user-id',
+        ['category-1', 'category-2'],
+        '2026-09-01',
+        '2026-09-30',
+      );
+
+      expect(result).toEqual(
+        new Map([
+          ['category-1', '50.00'],
+          ['category-2', '75.25'],
+        ]),
+      );
+      expect(queryBuilderMock.groupBy).toHaveBeenCalledWith(
+        'transaction.categoryId',
+      );
+    });
+
+    // Proves the N+1/empty-IN guard: TypeORM's `IN (:...ids)` throws on an
+    // empty array, so an empty categoryIds list must short-circuit WITHOUT
+    // ever calling createQueryBuilder.
+    it('returns an empty Map without calling createQueryBuilder when categoryIds is empty', async () => {
+      const result = await service.sumByCategoryExcludingTransfers(
+        'user-id',
+        [],
+        '2026-09-01',
+        '2026-09-30',
+      );
+
+      expect(result).toEqual(new Map());
+      expect(transactionsRepository.createQueryBuilder).not.toHaveBeenCalled();
     });
   });
 });

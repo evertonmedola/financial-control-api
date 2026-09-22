@@ -1,4 +1,9 @@
-import { addDecimalStrings, negateDecimalString } from './decimal.util';
+import {
+  addDecimalStrings,
+  isGreaterThanDecimalString,
+  negateDecimalString,
+  subtractDecimalStrings,
+} from './decimal.util';
 
 describe('decimal.util', () => {
   describe('addDecimalStrings', () => {
@@ -37,6 +42,33 @@ describe('decimal.util', () => {
 
     it('never emits "-0.00" for a zero value', () => {
       expect(negateDecimalString('0.00')).toBe('0.00');
+    });
+  });
+
+  describe('subtractDecimalStrings', () => {
+    it('subtracts two positive decimal strings exactly', () => {
+      expect(subtractDecimalStrings('300.00', '50.00')).toBe('250.00');
+    });
+
+    // Budgets D-08: remaining is never clamped to zero — an over-budget
+    // category yields a negative decimal string.
+    it('yields a negative, un-clamped result when b > a', () => {
+      expect(subtractDecimalStrings('100.00', '150.00')).toBe('-50.00');
+    });
+  });
+
+  describe('isGreaterThanDecimalString', () => {
+    it('returns true when a > b', () => {
+      expect(isGreaterThanDecimalString('150.00', '100.00')).toBe(true);
+    });
+
+    it('returns false when a < b', () => {
+      expect(isGreaterThanDecimalString('50.00', '100.00')).toBe(false);
+    });
+
+    // Budgets D-08: exactly-at-limit is not over-budget.
+    it('returns false when a === b (exactly-at-limit is not over-budget)', () => {
+      expect(isGreaterThanDecimalString('100.00', '100.00')).toBe(false);
     });
   });
 });

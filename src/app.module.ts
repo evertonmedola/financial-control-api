@@ -9,6 +9,7 @@ import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AccountsModule } from './accounts/accounts.module';
 import { AuthModule } from './auth/auth.module';
+import { BudgetsModule } from './budgets/budgets.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { validate } from './config/env.validation';
@@ -52,6 +53,7 @@ import { TransfersModule } from './transfers/transfers.module';
     CategoriesModule,
     TransactionsModule,
     TransfersModule,
+    BudgetsModule,
   ],
   providers: [
     // Global guard — covers every endpoint in every module by default;
