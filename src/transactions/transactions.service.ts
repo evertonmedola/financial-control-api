@@ -111,7 +111,21 @@ export class TransactionsService {
     id: string,
     dto: UpdateTransactionDto,
   ): Promise<Transaction> {
-    await this.findOne(userId, id); // ownership + type-scope + not-deleted check
+    const existing = await this.findOne(userId, id); // ownership + type-scope + not-deleted check
+    // CR-01 (05-REVIEW.md, systemic-pattern note): `UpdateTransactionDto`'s
+    // fields (`description`, `date`) are both optional, so a `{}` PATCH
+    // body reaches here with no value-set to write. `Repository.update()`
+    // throws TypeORM's UpdateValuesMissingError (an unhandled 500) when the
+    // value-set is empty — short-circuit before calling it and just return
+    // the transaction's current, unchanged state. `Object.keys(dto).length
+    // === 0` does NOT work as this guard: class-transformer + this
+    // project's ES2023 compile target gives `dto` own keys (value
+    // `undefined`) for every declared field even on an empty request body,
+    // since TS class fields use [[Define]] semantics — so each optional
+    // field must be checked individually instead.
+    if (dto.description === undefined && dto.date === undefined) {
+      return existing;
+    }
     // Scoped partial update (never touches `deletedAt`) instead of
     // load-then-full-save: if a concurrent DELETE soft-deletes this row
     // between the findOne() above and this write, `affected` is 0 and we
