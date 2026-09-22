@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Budgets
-status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-09-22T21:56:23.984Z"
+status: verifying
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-09-22T22:04:52.768Z"
 last_activity: 2026-09-22
 last_activity_desc: Phase 05 execution started
-state_head: e427f8e197feab8b8560f932e8bdddb56480f884
+state_head: f85a9a515e5e2cf3c0b6910f5febfe3224dd4574
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 17
-  completed_plans: 16
+  completed_plans: 17
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-09-14)
 
 Phase: 05 (Budgets) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-09-22 — Phase 05 execution started
 
 Progress: [████████████████████] 8/8 plans ([░░░░░░░░░░] 0%)
@@ -74,6 +74,7 @@ Progress: [████████████████████] 8/8 pla
 | Phase 04 P03 | 40min | 2 tasks | 9 files |
 | Phase 04 P04 | 14min | 2 tasks | 2 files |
 | Phase 05 P01 | 45min | 2 tasks | 16 files |
+| Phase 05 P02 | 20min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,7 @@ Recent decisions affecting current work:
 - [Phase 04]: UAT re-verification (post-review) found 04-VERIFICATION.md was stale — written before the 4 code-review fixes (CR-01/WR-01/02/03) landed. Re-verified live: all 4 fixes confirmed in source, full suite re-run clean (50/50 unit, 130/130 e2e), VERIFICATION.md and covered_digest updated to reflect fixed state, and a retroactive 04-SECURITY.md incorporated the 4 review findings as threats T-04-19..T-04-22 (all closed) alongside the plan-time STRIDE register — threats_open: 0
 - [Phase 05]: [Phase 05-01]: Budgets tracer proves TransactionsService.sumByCategoryExcludingTransfers (first grouped read-side aggregation) correctly excludes TRANSFER rows from category spend, reusing Phase 4's TXN-04 exclusion rule in a read path for the first time
 - [Phase 05]: [Phase 05-01]: Fixed test-authoring bug — literal '11111111-1111-1111-1111-111111111111' is not a valid UUID (wrong variant nibble); replaced with a proper v4 UUID in the nonexistent-categoryId IDOR test
+- [Phase 05]: [Phase 05-02] Cross-tenant IDOR suite confirmed BudgetsService/Controller (from 05-01) already enforce ownership correctly on every route and on create-time categoryId reference — no production code fix needed; full 65/65 unit + 146/146 e2e suite green, security-review checklist found zero new gaps
 
 ### Pending Todos
 
@@ -133,6 +135,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-22T21:56:23.849Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-09-22T22:04:52.633Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None

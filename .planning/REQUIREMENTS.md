@@ -36,9 +36,9 @@ Requirements for initial release (API local completa, containerizada). Deploy AW
 
 ### Budgets
 
-- [ ] **BUD-01**: User can set a monthly spending limit for a category
-- [ ] **BUD-02**: User can view consumed vs. remaining amount for a category's monthly budget (`remaining = limit - spent`, excluding transfers)
-- [ ] **BUD-03**: Over-budget state is explicitly representable in the response (not just a negative number silently returned)
+- [x] **BUD-01**: User can set a monthly spending limit for a category
+- [x] **BUD-02**: User can view consumed vs. remaining amount for a category's monthly budget (`remaining = limit - spent`, excluding transfers)
+- [x] **BUD-03**: Over-budget state is explicitly representable in the response (not just a negative number silently returned)
 
 ### Reports
 
@@ -104,9 +104,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TXN-03 | Phase 4 | Complete |
 | TXN-04 | Phase 4 | Complete |
 | TXN-05 | Phase 4 | Complete |
-| BUD-01 | Phase 5 | Pending |
-| BUD-02 | Phase 5 | Pending |
-| BUD-03 | Phase 5 | Pending |
+| BUD-01 | Phase 5 | Complete |
+| BUD-02 | Phase 5 | Complete |
+| BUD-03 | Phase 5 | Complete |
 | REP-01 | Phase 6 | Pending |
 | REP-02 | Phase 6 | Pending |
 | REP-03 | Phase 6 | Pending |
