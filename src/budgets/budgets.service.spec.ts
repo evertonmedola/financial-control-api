@@ -209,6 +209,20 @@ describe('BudgetsService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(budgetsRepository.findOne).not.toHaveBeenCalled();
     });
+
+    it('returns the current budget unchanged instead of crashing when the PATCH body is empty (regression, CR-01)', async () => {
+      const currentBudget = {
+        id: 'budget-id',
+        userId: 'user-id',
+        limit: '300.00',
+      } as Budget;
+      budgetsRepository.findOne.mockResolvedValue(currentBudget);
+
+      const result = await service.update('user-id', 'budget-id', {});
+
+      expect(budgetsRepository.update).not.toHaveBeenCalled();
+      expect(result).toBe(currentBudget);
+    });
   });
 
   describe('remove', () => {

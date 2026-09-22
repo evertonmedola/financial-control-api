@@ -401,6 +401,31 @@ describe('Budgets (e2e)', () => {
       ).toBe(categoryId);
     });
 
+    it('PATCH /budgets/:id with an empty body returns 200 with the budget unchanged, not a 500 (regression, CR-01)', async () => {
+      const category = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Categoria Patch Vazio', type: 'despesa' });
+      const categoryId = (category.body as EnvelopeBody<CategoryData>).data
+        ?.id as string;
+
+      const created = await request(app.getHttpServer())
+        .post('/budgets')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ categoryId, limit: '250.00' });
+      const budgetId = (created.body as EnvelopeBody<BudgetData>).data
+        ?.id as string;
+
+      const patched = await request(app.getHttpServer())
+        .patch(`/budgets/${budgetId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({});
+      expect(patched.status).toBe(200);
+      expect((patched.body as EnvelopeBody<BudgetData>).data?.limit).toBe(
+        '250.00',
+      );
+    });
+
     it('DELETE /budgets/:id soft-deletes, 404s afterward, disappears from the list, is idempotent, and frees the category for reuse (D-07)', async () => {
       const category = await request(app.getHttpServer())
         .post('/categories')

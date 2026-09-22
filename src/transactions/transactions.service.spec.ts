@@ -18,7 +18,7 @@ describe('TransactionsService', () => {
   let transactionsRepository: jest.Mocked<
     Pick<
       Repository<Transaction>,
-      'find' | 'findOne' | 'save' | 'createQueryBuilder'
+      'find' | 'findOne' | 'save' | 'update' | 'createQueryBuilder'
     >
   >;
   let queryRunner: {
@@ -58,6 +58,7 @@ describe('TransactionsService', () => {
       find: jest.fn(),
       findOne: jest.fn(),
       save: jest.fn(),
+      update: jest.fn(),
       createQueryBuilder: jest.fn(),
     };
 
@@ -200,6 +201,75 @@ describe('TransactionsService', () => {
           }) as unknown,
         }),
       );
+    });
+  });
+
+  describe('update', () => {
+    it('returns the current transaction unchanged instead of crashing when the PATCH body is empty (regression, CR-01)', async () => {
+      const currentTransaction = {
+        id: 'transaction-id',
+        userId: 'user-id',
+        description: 'Mercado',
+        date: '2026-09-13',
+      } as unknown as Transaction;
+      transactionsRepository.findOne.mockResolvedValue(currentTransaction);
+
+      const result = await service.update('user-id', 'transaction-id', {});
+
+      expect(transactionsRepository.update).not.toHaveBeenCalled();
+      expect(result).toBe(currentTransaction);
+    });
+
+    it('issues a scoped conditional update, then re-reads the row when a field is provided (happy path)', async () => {
+      const currentTransaction = {
+        id: 'transaction-id',
+        userId: 'user-id',
+        description: 'Mercado',
+        date: '2026-09-13',
+      } as unknown as Transaction;
+      const updatedTransaction = {
+        ...currentTransaction,
+        description: 'Feira',
+      } as unknown as Transaction;
+      transactionsRepository.findOne
+        .mockResolvedValueOnce(currentTransaction)
+        .mockResolvedValueOnce(updatedTransaction);
+      transactionsRepository.update.mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      });
+
+      const result = await service.update('user-id', 'transaction-id', {
+        description: 'Feira',
+      });
+
+      expect(transactionsRepository.update).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'transaction-id', userId: 'user-id' }),
+        { description: 'Feira' },
+      );
+      expect(result).toBe(updatedTransaction);
+    });
+
+    it('throws NotFoundException instead of resurrecting a concurrently soft-deleted transaction (error case)', async () => {
+      const currentTransaction = {
+        id: 'transaction-id',
+        userId: 'user-id',
+        description: 'Mercado',
+        date: '2026-09-13',
+      } as unknown as Transaction;
+      transactionsRepository.findOne.mockResolvedValueOnce(
+        currentTransaction,
+      );
+      transactionsRepository.update.mockResolvedValue({
+        affected: 0,
+        raw: [],
+        generatedMaps: [],
+      });
+
+      await expect(
+        service.update('user-id', 'transaction-id', { description: 'Feira' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

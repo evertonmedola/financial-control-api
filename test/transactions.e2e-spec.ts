@@ -673,6 +673,48 @@ describe('Transactions (e2e)', () => {
       expect(afterPatchData?.categoryId).toBe(categoryId);
     });
 
+    it('PATCH /transactions/:id with an empty body returns 200 with the transaction unchanged, not a 500 (regression, CR-01)', async () => {
+      const account = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'Conta Patch Vazio',
+          type: 'corrente',
+          balance: '1000.00',
+        });
+      const emptyPatchAccountId = (account.body as EnvelopeBody<AccountData>)
+        .data?.id as string;
+
+      const created = await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          type: 'expense',
+          amount: '20.00',
+          accountId: emptyPatchAccountId,
+          categoryId,
+          description: 'Original',
+          date: '2026-09-13',
+        })
+        .expect(201);
+      const transactionId = (created.body as EnvelopeBody<TransactionData>)
+        .data?.id as string;
+
+      const emptyPatch = await request(app.getHttpServer())
+        .patch(`/transactions/${transactionId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({});
+      expect(emptyPatch.status).toBe(200);
+
+      const afterPatch = await request(app.getHttpServer())
+        .get(`/transactions/${transactionId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      const afterPatchData = (afterPatch.body as EnvelopeBody<TransactionData>)
+        .data;
+      expect(afterPatchData?.description).toBe('Original');
+      expect(afterPatchData?.date).toBe('2026-09-13');
+    });
+
     it('DELETE /transactions/:id reverses the exact balance effect for an expense and for an income (D-06)', async () => {
       const expenseAccount = await request(app.getHttpServer())
         .post('/accounts')
