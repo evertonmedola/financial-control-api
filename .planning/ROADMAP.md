@@ -153,11 +153,16 @@ Plans:
   2. A user can view a category's consumed and remaining amounts for the month (`remaining = limit - spent`), correctly excluding transfers.
   3. When spending exceeds the limit, the response explicitly signals an over-budget state rather than silently returning a negative number.
 
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
+**Wave 1**
 
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md — Tracer + full CRUD: set a budget, see consumed/remaining/overBudget for the current month with transfers excluded (D-01..D-08)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 05-02-PLAN.md — Cross-tenant isolation suite, full regression, security-review checklist close-out
 
 ### Phase 6: Reports
 
