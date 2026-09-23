@@ -59,16 +59,15 @@ $ npm run test:cov
 
 ## Deployment
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### AWS deployment (Terraform)
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+The API runs on AWS in `sa-east-1`: an Application Load Balancer in public subnets forwards to ECS Fargate tasks in private subnets, which talk to a private RDS PostgreSQL instance. Credentials come from Secrets Manager at runtime, and everything is defined with Terraform in `infra/`.
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+See [infra/README.md](infra/README.md) for the runbook, the purpose of each AWS service and the test checklist.
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+**Warning:** the stack is HTTP only. Use throwaway data only, no real financial data until HTTPS exists.
+
+**Cost:** the NAT gateway, ALB, RDS and Fargate bill by the hour. Run `terraform -chdir=infra destroy` when the stack is idle.
 
 ## Resources
 
