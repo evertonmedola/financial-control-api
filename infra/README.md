@@ -5,6 +5,8 @@ All commands are the ones proven while building Phase 8 (plans 08-01 to 08-03). 
 
 **HTTP only. Use throwaway data only. No real financial data until HTTPS exists (D-06).**
 
+**Current status: the stack is DESTROYED (cost control, end of Phase 8).** All billable resources (NAT gateway, ALB, RDS, ECS service, Elastic IP) are gone. Two free IAM roles (`financial-control-ecs-execution`, `financial-control-ecs-task`) are still in Terraform state because `terraform destroy` failed on `iam:ListInstanceProfilesForRole` (missing on the developer policy); add that action and re-run `terraform -chdir=infra destroy` to finish, or simply run `apply` again, which reuses them. Re-creating the stack is `apply` (about 15-20 minutes) and gives an EMPTY database, so run the migration again. The state bucket, the JWT secret and the ECR repository still exist.
+
 ## Architecture and why each AWS service
 
 ```
