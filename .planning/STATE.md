@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 08
 current_phase_name: AWS Infrastructure
 status: executing
-stopped_at: Phase 8 context gathered
-last_updated: "2026-09-23T17:45:40.208Z"
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-09-23T18:35:34.947Z"
 last_activity: 2026-09-23
-last_activity_desc: Phase 07 complete, transitioned to Phase 8
-state_head: 9bc77d1ccbaa3de3c966298e915f509158ca3476
+last_activity_desc: Phase 08 execution started
+state_head: 5e5a8abbca63432dd551ad1ef6ecbe817f64e0cb
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 26
-  completed_plans: 22
+  completed_plans: 23
   percent: 0
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-22)
 
 **Core value:** A API funciona localmente, com segurança tratada como requisito central (não como extra), e evolui em etapas incrementais claras até chegar a um deploy AWS completo e auditável.
-**Current focus:** Phase 07 — Containerization
+**Current focus:** Phase 08 — AWS Infrastructure
 
 ## Current Position
 
-Phase: 08 (AWS Infrastructure) — READY TO EXECUTE
-Plan: Not started
+Phase: 08 (AWS Infrastructure) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-09-23 — Phase 07 complete, transitioned to Phase 8
+Last activity: 2026-09-23 — Phase 08 execution started
 
 Progress: [████████████████████] 8/8 plans ([░░░░░░░░░░] 0%)
 
@@ -81,6 +81,7 @@ Progress: [████████████████████] 8/8 pla
 | Phase 06 P01 | 8min | 2 tasks | 9 files |
 | Phase 06 P02 | 15min | 2 tasks | 8 files |
 | Phase 06 P03 | 12min | 2 tasks | 1 files |
+| Phase 08 P01 | short | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,7 @@ Recent decisions affecting current work:
 - [Phase 06]: AccountsModule wired into ReportsModule; net-balance nets assets vs cartao_credito debt via decimal.util.ts (REP-02)
 - [Phase 06]: getMonthBounds/getPreviousMonthBounds kept private to ReportsService (not shared with BudgetsService's differently-parameterized bounds helper), computing REP-03's current/previous month comparison with correct January rollover
 - [Phase 06]: [Phase 06-03]: Cross-tenant isolation for plain-GET-with-no-:id Reports routes is entirely list-scoping/aggregation-scoping, proven with a dedicated two-user suite under identically-named categories on both tenants — No :id route exists in ReportsController, so there is no foreign-id-404 case to test — userId comes only from @CurrentUser()
+- [Phase 08]: 08-01: IAM Option B (scoped customer-managed policy) chosen for medolaFinance; state bucket + JWT secret created outside Terraform
 
 ### Pending Todos
 
@@ -148,6 +150,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-23T14:56:04.280Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-aws-infrastructure/08-CONTEXT.md
+Last session: 2026-09-23T18:35:34.686Z
+Stopped at: Completed 08-01-PLAN.md
+Resume file: None

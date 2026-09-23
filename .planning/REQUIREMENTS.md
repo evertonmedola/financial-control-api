@@ -111,7 +111,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REP-02 | Phase 6 | Complete |
 | REP-03 | Phase 6 | Complete |
 | INFRA-01 | Phase 7 | Complete |
-| INFRA-02 | Phase 8 | Pending |
+| INFRA-02 | Phase 8 | Complete |
 | INFRA-03 | Phase 9 | Pending |
 | INFRA-04 | Phase 9 | Pending |
 
