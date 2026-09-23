@@ -68,3 +68,11 @@ docker-compose.override.yml
 .claude/settings.local.json
 .gsd/
 .planning/research/.cache/
+
+# Terraform
+infra/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+tfplan*
