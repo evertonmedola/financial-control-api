@@ -16,5 +16,38 @@ services:
       timeout: 5s
       retries: 10
 
+  api:
+    image: financial-control-api:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${PORT}
+      # DB_HOST/DB_PORT deliberately diverge from .env.example's local-dev
+      # defaults (D-03) — the containerized API reaches Postgres via
+      # compose's internal DNS (service name `db`), not localhost/the
+      # host-mapped port.
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+    # Container-internal bind port tracks the SAME ${PORT} value injected via
+    # `environment.PORT` above (the app binds to whatever PORT it reads at
+    # startup) — a hardcoded "...:3000" right-hand side would break as soon
+    # as PORT diverges from 3000, silently forwarding to a port nothing is
+    # listening on inside the container.
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   financial-control-db-data:

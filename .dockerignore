@@ -1,0 +1,21 @@
+node_modules
+dist
+.git
+.env
+.env.*
+test
+coverage
+*.md
+.vscode
+.idea
+npm-debug.log*
+Dockerfile
+.dockerignore
+# TypeScript's incremental build cache — leaking the host's stale
+# tsconfig.build.tsbuildinfo into the image build context confuses tsc's
+# incremental compiler into believing most output files are already
+# up-to-date, silently skipping emission of everything except a handful of
+# unrelated files (discovered while building this image: only
+# database/migrations/*.js were emitted, dist/main.js and friends were
+# missing entirely).
+*.tsbuildinfo
