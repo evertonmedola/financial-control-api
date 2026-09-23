@@ -23,6 +23,16 @@ RUN npm run build
 # runtime stage.
 RUN npm prune --omit=dev
 
+# typeorm@1.1.1 lists ts-node as a regular (non-dev) dependency for its CLI's
+# TS-migration support — `npm prune --omit=dev` correctly leaves it (and its
+# own typescript dependency) in place since npm's dependency graph sees them
+# as production. Neither is ever imported by the compiled dist/ output (the
+# TypeORM CLI/ts-node path is only reachable via `npm run typeorm`/
+# migration:*, which never runs inside this container — INFRA-04). Stripped
+# explicitly here so the runtime image has no typescript compiler, matching
+# ROADMAP Success Criterion #1.
+RUN rm -rf node_modules/typescript node_modules/ts-node
+
 FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
@@ -41,6 +51,13 @@ USER nestjs
 # ConfigService.getOrThrow<number>('PORT') in src/main.ts, unchanged this
 # phase.
 EXPOSE 3000
+
+# D-02: Node's built-in http module, no curl/wget installed anywhere in the
+# image. Reads process.env.PORT directly inside the script (not shell
+# ${PORT} interpolation, which CMD's shell form does not guarantee is
+# exported the way the script needs) — defaults to 3000 when unset.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
+  CMD node -e "require('http').get({host:'localhost',port:process.env.PORT||3000,path:'/health'},(res)=>{process.exit(res.statusCode>=200&&res.statusCode<300?0:1)}).on('error',()=>process.exit(1))"
 
 # Mirrors package.json's existing start:prod script exactly.
 CMD ["node", "dist/main"]
