@@ -55,3 +55,16 @@ pids
 
 # Docker
 docker-compose.override.yml
+
+.claude/gsd-core/
+.claude/agents/
+.claude/commands/
+.claude/hooks/
+.claude/scripts/
+.claude/gsd-file-manifest.json
+.claude/gsd-install-state.json
+.claude/gsd-migration-journal/
+.claude/.gsd-profile
+.claude/settings.local.json
+.gsd/
+.planning/research/.cache/

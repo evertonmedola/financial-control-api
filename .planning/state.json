@@ -1,0 +1,58 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": null,
+  "phases": [
+    {
+      "number": "1",
+      "name": "Authentication & Multi-Tenant Foundation",
+      "status": "complete"
+    },
+    {
+      "number": "2",
+      "name": "Accounts",
+      "status": "complete"
+    },
+    {
+      "number": "3",
+      "name": "Categories",
+      "status": "complete"
+    },
+    {
+      "number": "4",
+      "name": "Transactions & Transfers",
+      "status": "complete"
+    },
+    {
+      "number": "5",
+      "name": "Budgets",
+      "status": "complete"
+    },
+    {
+      "number": "6",
+      "name": "Reports",
+      "status": "complete"
+    },
+    {
+      "number": "7",
+      "name": "Containerization",
+      "status": "complete"
+    },
+    {
+      "number": "8",
+      "name": "AWS Infrastructure",
+      "status": "pending"
+    },
+    {
+      "number": "9",
+      "name": "CI/CD Pipeline",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd:progress --next",
+    "label": "Advance to the next step",
+    "reason": "Phase 08 of 9 · 0% · executing"
+  },
+  "updated_at": "2026-09-23T17:45:40.281Z"
+}
