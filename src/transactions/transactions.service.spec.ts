@@ -230,7 +230,7 @@ describe('TransactionsService', () => {
       const updatedTransaction = {
         ...currentTransaction,
         description: 'Feira',
-      } as unknown as Transaction;
+      };
       transactionsRepository.findOne
         .mockResolvedValueOnce(currentTransaction)
         .mockResolvedValueOnce(updatedTransaction);
@@ -258,9 +258,7 @@ describe('TransactionsService', () => {
         description: 'Mercado',
         date: '2026-09-13',
       } as unknown as Transaction;
-      transactionsRepository.findOne.mockResolvedValueOnce(
-        currentTransaction,
-      );
+      transactionsRepository.findOne.mockResolvedValueOnce(currentTransaction);
       transactionsRepository.update.mockResolvedValue({
         affected: 0,
         raw: [],
@@ -444,6 +442,38 @@ describe('TransactionsService', () => {
       );
       expect(queryBuilderMock.groupBy).toHaveBeenCalledWith(
         'transaction.categoryId',
+      );
+    });
+
+    // Closes the same non-blocking gap STATE.md noted for the sibling
+    // sumByCategoryExcludingTransfers method (Phase 5): proves by
+    // construction that the filter is `type = EXPENSE` (not merely
+    // `type != TRANSFER`), so an INCOME row posted against the same
+    // category as an EXPENSE row can never contribute to the sum.
+    it('filters by type = EXPENSE (not merely != TRANSFER), so an INCOME row can never contribute to the sum', async () => {
+      const queryBuilderMock = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest
+          .fn()
+          .mockResolvedValue([{ categoryId: 'category-1', total: '50.00' }]),
+      };
+      transactionsRepository.createQueryBuilder.mockReturnValue(
+        queryBuilderMock as never,
+      );
+
+      await service.sumByCategoryForDateRangeExcludingTransfers(
+        'user-id',
+        '2026-09-01',
+        '2026-09-30',
+      );
+
+      expect(queryBuilderMock.andWhere).toHaveBeenCalledWith(
+        'transaction.type = :expenseType',
+        { expenseType: TransactionType.EXPENSE },
       );
     });
   });
