@@ -3,15 +3,16 @@ services:
     image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER:?DB_USER is required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      POSTGRES_DB: ${DB_NAME:?DB_NAME is required}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      # Loopback only — the API reaches the DB over compose DNS.
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - financial-control-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:?} -d ${DB_NAME:?}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -22,22 +23,24 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    # Node runs as PID 1 in the image; init reaps zombies and forwards signals.
+    init: true
     environment:
-      NODE_ENV: ${NODE_ENV}
-      PORT: ${PORT}
+      NODE_ENV: production
+      PORT: ${PORT:-3000}
       # DB_HOST/DB_PORT deliberately diverge from .env.example's local-dev
       # defaults (D-03) — the containerized API reaches Postgres via
       # compose's internal DNS (service name `db`), not localhost/the
       # host-mapped port.
       DB_HOST: db
       DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
-      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      DB_USER: ${DB_USER:?DB_USER is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      DB_NAME: ${DB_NAME:?DB_NAME is required}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:?JWT_ACCESS_EXPIRES_IN is required}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:?JWT_REFRESH_EXPIRES_IN is required}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?ALLOWED_ORIGINS is required}
     # Container-internal bind port tracks the SAME ${PORT} value injected via
     # `environment.PORT` above (the app binds to whatever PORT it reads at
     # startup) — a hardcoded "...:3000" right-hand side would break as soon
