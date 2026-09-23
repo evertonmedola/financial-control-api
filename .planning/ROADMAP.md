@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Budgets** - Users can set monthly category limits and see accurate consumed/remaining amounts (completed 2026-09-22)
 - [x] **Phase 6: Reports** - Users can retrieve category, consolidated-balance, and month-over-month reports (completed 2026-09-23)
 - [x] **Phase 7: Containerization** - The API runs identically in a Docker container as it does locally (completed 2026-09-23)
-- [ ] **Phase 8: AWS Infrastructure** - The API runs on AWS behind an ALB with a private RDS database and Secrets Manager credentials
+- [x] **Phase 8: AWS Infrastructure** - The API runs on AWS behind an ALB with a private RDS database and Secrets Manager credentials (completed 2026-09-23)
 - [ ] **Phase 9: CI/CD Pipeline** - Every push to main is automatically tested, built, and deployed to AWS with no static AWS keys
 
 ## Phase Details
@@ -277,7 +277,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Budgets | 2/2 | Complete    | 2026-09-22 |
 | 6. Reports | 3/3 | Complete    | 2026-09-23 |
 | 7. Containerization | 2/2 | Complete    | 2026-09-23 |
-| 8. AWS Infrastructure | 4/4 | In Progress|  |
+| 8. AWS Infrastructure | 4/4 | Complete    | 2026-09-23 |
 | 9. CI/CD Pipeline | 0/TBD | Not started | - |
 
 ---
