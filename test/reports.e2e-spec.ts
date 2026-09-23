@@ -378,6 +378,22 @@ describe('Reports (e2e)', () => {
           ?.balance,
       ).toBe('-300.00');
     });
+
+    it('rejects an unexpected extra query param with 400 (WR-02)', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/reports/net-balance?foo=bar')
+        .set('Authorization', `Bearer ${netBalanceAccessToken}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('rejects a client-supplied userId in the query string with 400 instead of honoring it (WR-02, Pitfall 3 / IDOR)', async () => {
+      const response = await request(app.getHttpServer())
+        .get(
+          '/reports/net-balance?userId=11111111-1111-1111-1111-111111111111',
+        )
+        .set('Authorization', `Bearer ${netBalanceAccessToken}`);
+      expect(response.status).toBe(400);
+    });
   });
 
   describe('month comparison', () => {

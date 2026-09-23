@@ -5,6 +5,7 @@ import { CategorySummaryQueryDto } from './dto/category-summary-query.dto';
 import { CategorySummaryResponseDto } from './dto/category-summary-response.dto';
 import { MonthComparisonQueryDto } from './dto/month-comparison-query.dto';
 import { MonthComparisonResponseDto } from './dto/month-comparison-response.dto';
+import { NetBalanceQueryDto } from './dto/net-balance-query.dto';
 import { NetBalanceResponseDto } from './dto/net-balance-response.dto';
 import { ReportsService } from './reports.service';
 
@@ -25,9 +26,14 @@ export class ReportsController {
   }
 
   // No query parameters — narrowest possible input surface (T-06-05).
+  // Still binds @Query() to an empty DTO so the global
+  // forbidNonWhitelisted ValidationPipe structurally rejects any
+  // unexpected/spoofed param (e.g. userId) with 400, consistent with the
+  // other two Reports endpoints (WR-02).
   @Get('net-balance')
   async netBalance(
     @CurrentUser() userId: string,
+    @Query() _query: NetBalanceQueryDto,
   ): Promise<NetBalanceResponseDto> {
     return this.reportsService.getNetBalance(userId);
   }
