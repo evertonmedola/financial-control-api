@@ -13,6 +13,7 @@ import { BudgetsModule } from './budgets/budgets.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { validate } from './config/env.validation';
+import { ReportsModule } from './reports/reports.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { TransfersModule } from './transfers/transfers.module';
 
@@ -54,6 +55,7 @@ import { TransfersModule } from './transfers/transfers.module';
     TransactionsModule,
     TransfersModule,
     BudgetsModule,
+    ReportsModule,
   ],
   providers: [
     // Global guard — covers every endpoint in every module by default;

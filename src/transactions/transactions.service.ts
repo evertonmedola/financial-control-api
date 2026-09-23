@@ -240,4 +240,38 @@ export class TransactionsService {
 
     return new Map(rows.map((row) => [row.categoryId, row.total]));
   }
+
+  // Phase 6 (REP-01) — extends the shape above to an arbitrary date range
+  // over ALL of the user's expense categories, not just a caller-supplied
+  // allowlist. Deliberately does NOT modify sumByCategoryExcludingTransfers
+  // above (zero regression risk to Budgets' Phase-5 aggregation) — this is
+  // a new, parallel method. With no `categoryIds IN (...)` filter to
+  // backfill, the `GROUP BY` structurally returns exactly the categories
+  // that have matching rows in range — CONTEXT.md's "Empty Category Rows"
+  // decision satisfied with no extra filtering logic anywhere downstream.
+  // No empty-array guard is needed here (unlike the sibling method) since
+  // there is no `IN (...)` clause to guard.
+  async sumByCategoryForDateRangeExcludingTransfers(
+    userId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<Map<string, string>> {
+    const rows = await this.transactionsRepository
+      .createQueryBuilder('transaction')
+      .select('transaction.categoryId', 'categoryId')
+      .addSelect('SUM(transaction.amount)', 'total')
+      .where('transaction.userId = :userId', { userId })
+      .andWhere('transaction.type = :expenseType', {
+        expenseType: TransactionType.EXPENSE,
+      })
+      .andWhere('transaction.date BETWEEN :startDate AND :endDate', {
+        startDate,
+        endDate,
+      })
+      .andWhere('transaction.deletedAt IS NULL')
+      .groupBy('transaction.categoryId')
+      .getRawMany<{ categoryId: string; total: string }>();
+
+    return new Map(rows.map((row) => [row.categoryId, row.total]));
+  }
 }

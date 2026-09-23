@@ -412,4 +412,39 @@ describe('TransactionsService', () => {
       expect(transactionsRepository.createQueryBuilder).not.toHaveBeenCalled();
     });
   });
+
+  describe('sumByCategoryForDateRangeExcludingTransfers', () => {
+    it('resolves the raw aggregation rows into a Map keyed by categoryId, with no categoryIds allowlist (happy path)', async () => {
+      const queryBuilderMock = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn().mockResolvedValue([
+          { categoryId: 'category-1', total: '50.00' },
+          { categoryId: 'category-2', total: '75.25' },
+        ]),
+      };
+      transactionsRepository.createQueryBuilder.mockReturnValue(
+        queryBuilderMock as never,
+      );
+
+      const result = await service.sumByCategoryForDateRangeExcludingTransfers(
+        'user-id',
+        '2026-09-01',
+        '2026-09-30',
+      );
+
+      expect(result).toEqual(
+        new Map([
+          ['category-1', '50.00'],
+          ['category-2', '75.25'],
+        ]),
+      );
+      expect(queryBuilderMock.groupBy).toHaveBeenCalledWith(
+        'transaction.categoryId',
+      );
+    });
+  });
 });
