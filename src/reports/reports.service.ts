@@ -1,14 +1,19 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { AccountsService } from '../accounts/accounts.service';
+import { AccountType } from '../accounts/entities/account.entity';
 import { CategoriesService } from '../categories/categories.service';
+import {
+  addDecimalStrings,
+  subtractDecimalStrings,
+} from '../common/decimal.util';
 import { TransactionsService } from '../transactions/transactions.service';
 import { CategorySummaryResponseDto } from './dto/category-summary-response.dto';
+import { NetBalanceResponseDto } from './dto/net-balance-response.dto';
 
 @Injectable()
 export class ReportsService {
-  // AccountsService is deliberately NOT wired yet — tracer-first: wire only
-  // what THIS task's endpoint uses; 06-02-PLAN.md adds it when net-balance
-  // needs it.
   constructor(
+    private readonly accountsService: AccountsService,
     private readonly categoriesService: CategoriesService,
     private readonly transactionsService: TransactionsService,
   ) {}
@@ -58,5 +63,27 @@ export class ReportsService {
       );
     }
     return summaries;
+  }
+
+  // REP-02: consolidated balance is a NET total — CONTEXT.md's "Balance
+  // Netting" decision. accountsService.findAll(userId) is already
+  // userId + deletedAt IS NULL scoped (Phase 2 convention), so a
+  // soft-deleted account is excluded automatically with no extra filtering
+  // here. CARTAO_CREDITO's stored `balance` is always "amount owed"
+  // (Phase 2, D-01) — subtracted as debt, never summed in as an asset.
+  // decimal.util.ts only — never parseFloat/Number() anywhere in this
+  // method.
+  async getNetBalance(userId: string): Promise<NetBalanceResponseDto> {
+    const accounts = await this.accountsService.findAll(userId);
+    let assets = '0.00';
+    let debt = '0.00';
+    for (const account of accounts) {
+      if (account.type === AccountType.CARTAO_CREDITO) {
+        debt = addDecimalStrings(debt, account.balance);
+      } else {
+        assets = addDecimalStrings(assets, account.balance);
+      }
+    }
+    return NetBalanceResponseDto.build(subtractDecimalStrings(assets, debt));
   }
 }

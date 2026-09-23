@@ -27,6 +27,10 @@ interface CategorySummaryData {
   total?: string;
 }
 
+interface NetBalanceData {
+  balance?: string;
+}
+
 interface EnvelopeBody<T> {
   data?: T;
   timestamp?: string;
@@ -280,6 +284,73 @@ describe('Reports (e2e)', () => {
         .data as CategorySummaryData[];
       const entry = entries.find((item) => item.categoryId === categoryId);
       expect(entry?.total).toBe('25.00');
+    });
+  });
+
+  describe('net balance', () => {
+    // A dedicated user, not the shared `accessToken` above — the category
+    // summary describe block already created several accounts under that
+    // user, which would pollute an exact-equality net-balance assertion.
+    let netBalanceAccessToken: string;
+
+    beforeAll(async () => {
+      const email = uniqueEmail();
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email, password })
+        .expect(201);
+      const loginResponse = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email, password })
+        .expect(200);
+      netBalanceAccessToken =
+        (loginResponse.body as EnvelopeBody<AuthData>).data?.accessToken ?? '';
+    });
+
+    it('GET /reports/net-balance nets a corrente asset against a cartao_credito debt, and excludes a soft-deleted account (REP-02)', async () => {
+      const correnteAccount = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${netBalanceAccessToken}`)
+        .send({
+          name: 'Conta Corrente NB',
+          type: 'corrente',
+          balance: '1000.00',
+        });
+      const correnteAccountId = (
+        correnteAccount.body as EnvelopeBody<AccountData>
+      ).data?.id as string;
+
+      await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${netBalanceAccessToken}`)
+        .send({
+          name: 'Cartão NB',
+          type: 'cartao_credito',
+          balance: '300.00',
+        })
+        .expect(201);
+
+      const response = await request(app.getHttpServer())
+        .get('/reports/net-balance')
+        .set('Authorization', `Bearer ${netBalanceAccessToken}`);
+      expect(response.status).toBe(200);
+      expect(
+        (response.body as EnvelopeBody<NetBalanceData>).data?.balance,
+      ).toBe('700.00');
+
+      await request(app.getHttpServer())
+        .delete(`/accounts/${correnteAccountId}`)
+        .set('Authorization', `Bearer ${netBalanceAccessToken}`)
+        .expect(200);
+
+      const responseAfterDelete = await request(app.getHttpServer())
+        .get('/reports/net-balance')
+        .set('Authorization', `Bearer ${netBalanceAccessToken}`);
+      expect(responseAfterDelete.status).toBe(200);
+      expect(
+        (responseAfterDelete.body as EnvelopeBody<NetBalanceData>).data
+          ?.balance,
+      ).toBe('-300.00');
     });
   });
 });
