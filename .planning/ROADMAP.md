@@ -226,11 +226,24 @@ Plans:
   2. Database credentials and the JWT secret are injected at container runtime from Secrets Manager — never present in the image, environment files, or CI logs.
   3. The ALB only routes traffic to ECS tasks that pass the `/health` check; an unhealthy task is automatically removed from rotation.
 
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
+**Wave 1**
 
-- [ ] 08-01: TBD
+- [ ] 08-01-PLAN.md — AWS access gate (human grants IAM permissions), S3 remote state bucket, JWT secret via CLI, Terraform root-module skeleton (no billable resources)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 08-02-PLAN.md — Tracer: Internet -> ALB -> private Fargate -> private RDS with runtime-injected secrets, applied behind a human cost gate and proven via /health (D-04..D-09)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 08-03-PLAN.md — Initial migration via one-off run-task (D-10), register/login smoke through the ALB, live proof of all 3 Success Criteria
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 08-04-PLAN.md — Runbook + per-service rationale + end-of-phase test checklist, destroy-readiness proof, security-review close-out, keep/destroy decision
 
 ### Phase 9: CI/CD Pipeline
 
@@ -264,7 +277,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Budgets | 2/2 | Complete    | 2026-09-22 |
 | 6. Reports | 3/3 | Complete    | 2026-09-23 |
 | 7. Containerization | 2/2 | Complete    | 2026-09-23 |
-| 8. AWS Infrastructure | 0/TBD | Not started | - |
+| 8. AWS Infrastructure | 0/4 | Planned | - |
 | 9. CI/CD Pipeline | 0/TBD | Not started | - |
 
 ---
