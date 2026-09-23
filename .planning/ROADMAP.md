@@ -226,7 +226,7 @@ Plans:
   2. Database credentials and the JWT secret are injected at container runtime from Secrets Manager — never present in the image, environment files, or CI logs.
   3. The ALB only routes traffic to ECS tasks that pass the `/health` check; an unhealthy task is automatically removed from rotation.
 
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans executed
 
 Plans:
 **Wave 1**
@@ -243,7 +243,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 08-04-PLAN.md — Runbook + per-service rationale + end-of-phase test checklist, destroy-readiness proof, security-review close-out, keep/destroy decision
+- [x] 08-04-PLAN.md — Runbook + per-service rationale + end-of-phase test checklist, destroy-readiness proof, security-review close-out, keep/destroy decision
 
 ### Phase 9: CI/CD Pipeline
 
@@ -277,7 +277,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Budgets | 2/2 | Complete    | 2026-09-22 |
 | 6. Reports | 3/3 | Complete    | 2026-09-23 |
 | 7. Containerization | 2/2 | Complete    | 2026-09-23 |
-| 8. AWS Infrastructure | 3/4 | In Progress|  |
+| 8. AWS Infrastructure | 4/4 | In Progress|  |
 | 9. CI/CD Pipeline | 0/TBD | Not started | - |
 
 ---
