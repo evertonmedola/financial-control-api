@@ -176,7 +176,7 @@ Plans:
   2. A user can request a single consolidated balance across all of their accounts (JSON).
   3. A user can request a month-over-month comparison (JSON) showing spending deltas per category.
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans executed
 
 Plans:
 **Wave 1**
@@ -189,7 +189,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 06-03-PLAN.md — Cross-tenant isolation suite, full regression, security-review checklist close-out
+- [x] 06-03-PLAN.md — Cross-tenant isolation suite, full regression, security-review checklist close-out
 
 ### Phase 7: Containerization
 
@@ -257,7 +257,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 3. Categories | 3/3 | Complete    | 2026-09-13 |
 | 4. Transactions & Transfers | 4/4 | Complete    | 2026-09-14 |
 | 5. Budgets | 2/2 | Complete    | 2026-09-22 |
-| 6. Reports | 2/3 | In Progress|  |
+| 6. Reports | 3/3 | In Progress|  |
 | 7. Containerization | 0/TBD | Not started | - |
 | 8. AWS Infrastructure | 0/TBD | Not started | - |
 | 9. CI/CD Pipeline | 0/TBD | Not started | - |

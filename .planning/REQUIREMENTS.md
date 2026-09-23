@@ -42,9 +42,9 @@ Requirements for initial release (API local completa, containerizada). Deploy AW
 
 ### Reports
 
-- [ ] **REP-01**: User can retrieve a category/period spending summary (JSON) for a given date range
-- [ ] **REP-02**: User can retrieve a consolidated balance across all their accounts (JSON)
-- [ ] **REP-03**: User can retrieve a month-over-month comparison report (JSON) showing spending deltas per category
+- [x] **REP-01**: User can retrieve a category/period spending summary (JSON) for a given date range
+- [x] **REP-02**: User can retrieve a consolidated balance across all their accounts (JSON)
+- [x] **REP-03**: User can retrieve a month-over-month comparison report (JSON) showing spending deltas per category
 
 ## v2 Requirements
 
@@ -107,9 +107,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BUD-01 | Phase 5 | Complete |
 | BUD-02 | Phase 5 | Complete |
 | BUD-03 | Phase 5 | Complete |
-| REP-01 | Phase 6 | Pending |
-| REP-02 | Phase 6 | Pending |
-| REP-03 | Phase 6 | Pending |
+| REP-01 | Phase 6 | Complete |
+| REP-02 | Phase 6 | Complete |
+| REP-03 | Phase 6 | Complete |
 | INFRA-01 | Phase 7 | Pending |
 | INFRA-02 | Phase 8 | Pending |
 | INFRA-03 | Phase 9 | Pending |
