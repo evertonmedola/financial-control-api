@@ -3,6 +3,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CategorySummaryQueryDto } from './dto/category-summary-query.dto';
 import { CategorySummaryResponseDto } from './dto/category-summary-response.dto';
+import { MonthComparisonQueryDto } from './dto/month-comparison-query.dto';
+import { MonthComparisonResponseDto } from './dto/month-comparison-response.dto';
 import { NetBalanceResponseDto } from './dto/net-balance-response.dto';
 import { ReportsService } from './reports.service';
 
@@ -28,5 +30,13 @@ export class ReportsController {
     @CurrentUser() userId: string,
   ): Promise<NetBalanceResponseDto> {
     return this.reportsService.getNetBalance(userId);
+  }
+
+  @Get('month-comparison')
+  async monthComparison(
+    @CurrentUser() userId: string,
+    @Query() query: MonthComparisonQueryDto,
+  ): Promise<MonthComparisonResponseDto[]> {
+    return this.reportsService.getMonthComparison(userId, query.month);
   }
 }

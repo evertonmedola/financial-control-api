@@ -8,6 +8,7 @@ import {
 } from '../common/decimal.util';
 import { TransactionsService } from '../transactions/transactions.service';
 import { CategorySummaryResponseDto } from './dto/category-summary-response.dto';
+import { MonthComparisonResponseDto } from './dto/month-comparison-response.dto';
 import { NetBalanceResponseDto } from './dto/net-balance-response.dto';
 
 @Injectable()
@@ -85,5 +86,95 @@ export class ReportsService {
       }
     }
     return NetBalanceResponseDto.build(subtractDecimalStrings(assets, debt));
+  }
+
+  // REP-03: month-over-month per-category comparison. Fetches current +
+  // previous month's spend (both via the same aggregation method REP-01
+  // added) and the user's categories concurrently. The UNION of both
+  // months' categoryIds is used — deliberately not just the current
+  // month's — so a category with real spend last month and none this
+  // month still appears with a meaningful "dropped to zero" delta,
+  // mirroring Budgets' Pitfall-4 "never null/undefined/NaN" convention
+  // applied to whichever side of the comparison is missing.
+  async getMonthComparison(
+    userId: string,
+    month: string,
+  ): Promise<MonthComparisonResponseDto[]> {
+    const current = this.getMonthBounds(month);
+    const previous = this.getPreviousMonthBounds(month);
+
+    const [currentSpend, previousSpend, categories] = await Promise.all([
+      this.transactionsService.sumByCategoryForDateRangeExcludingTransfers(
+        userId,
+        current.start,
+        current.end,
+      ),
+      this.transactionsService.sumByCategoryForDateRangeExcludingTransfers(
+        userId,
+        previous.start,
+        previous.end,
+      ),
+      this.categoriesService.findAll(userId),
+    ]);
+
+    const categoryNamesById = new Map(
+      categories.map((category) => [category.id, category.name]),
+    );
+
+    const categoryIds = new Set([
+      ...currentSpend.keys(),
+      ...previousSpend.keys(),
+    ]);
+
+    const comparisons: MonthComparisonResponseDto[] = [];
+    for (const categoryId of categoryIds) {
+      const categoryName = categoryNamesById.get(categoryId);
+      // Same soft-delete-exclusion discretion as getCategorySummary: a
+      // category soft-deleted after transactions referencing it still
+      // exist has no name to show, so it is skipped.
+      if (categoryName === undefined) {
+        continue;
+      }
+      comparisons.push(
+        MonthComparisonResponseDto.build(
+          categoryId,
+          categoryName,
+          currentSpend.get(categoryId) ?? '0.00',
+          previousSpend.get(categoryId) ?? '0.00',
+        ),
+      );
+    }
+    return comparisons;
+  }
+
+  // Parses `month` ("YYYY-MM") into its own first/last-day bounds. Mirrors
+  // BudgetsService.getCurrentMonthBounds's UTC-date-parts computation
+  // exactly, but parameterized by the requested month string instead of
+  // `new Date()`.
+  private getMonthBounds(month: string): { start: string; end: string } {
+    const [yearStr, monthStr] = month.split('-');
+    const year = Number(yearStr);
+    const monthIndex = Number(monthStr) - 1;
+    const pad = (value: number): string => value.toString().padStart(2, '0');
+    const start = `${year}-${pad(monthIndex + 1)}-01`;
+    const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+    const end = `${year}-${pad(monthIndex + 1)}-${pad(lastDay)}`;
+    return { start, end };
+  }
+
+  // Computes the immediately preceding calendar month's bounds from the
+  // same `month` string. `new Date(Date.UTC(year, monthIndex - 1, 1))`
+  // correctly rolls a monthIndex of -1 back into December of the prior
+  // year, so no manual January-boundary branch is needed.
+  private getPreviousMonthBounds(month: string): {
+    start: string;
+    end: string;
+  } {
+    const [yearStr, monthStr] = month.split('-');
+    const year = Number(yearStr);
+    const monthIndex = Number(monthStr) - 1;
+    const previousDate = new Date(Date.UTC(year, monthIndex - 1, 1));
+    const previousMonth = `${previousDate.getUTCFullYear()}-${(previousDate.getUTCMonth() + 1).toString().padStart(2, '0')}`;
+    return this.getMonthBounds(previousMonth);
   }
 }

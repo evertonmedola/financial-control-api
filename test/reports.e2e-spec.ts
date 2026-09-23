@@ -31,6 +31,14 @@ interface NetBalanceData {
   balance?: string;
 }
 
+interface MonthComparisonData {
+  categoryId?: string;
+  categoryName?: string;
+  currentMonthTotal?: string;
+  previousMonthTotal?: string;
+  delta?: string;
+}
+
 interface EnvelopeBody<T> {
   data?: T;
   timestamp?: string;
@@ -40,6 +48,24 @@ interface EnvelopeBody<T> {
 // transaction/transfer dates so this suite always exercises "today" as a
 // single-day range regardless of when it's run.
 const todayIso = (): string => new Date().toISOString().slice(0, 10);
+
+// The current calendar month formatted as "YYYY-MM" and a date inside the
+// immediately preceding calendar month — both computed dynamically from
+// `new Date()` at test-run time (mirrors budgets.e2e-spec.ts's
+// firstOfCurrentMonthIso()-style helper), never a hardcoded date, so the
+// month-comparison suite is stable across when it runs.
+const currentMonthIso = (): string => {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+};
+
+const dateInPreviousMonthIso = (): string => {
+  const now = new Date();
+  const previous = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 15),
+  );
+  return `${previous.getUTCFullYear()}-${String(previous.getUTCMonth() + 1).padStart(2, '0')}-15`;
+};
 
 describe('Reports (e2e)', () => {
   let app: INestApplication;
@@ -351,6 +377,82 @@ describe('Reports (e2e)', () => {
         (responseAfterDelete.body as EnvelopeBody<NetBalanceData>).data
           ?.balance,
       ).toBe('-300.00');
+    });
+  });
+
+  describe('month comparison', () => {
+    it('GET /reports/month-comparison compares the requested month against the immediately preceding one (REP-03)', async () => {
+      const account = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Conta MC', type: 'corrente', balance: '1000.00' });
+      const accountId = (account.body as EnvelopeBody<AccountData>).data
+        ?.id as string;
+
+      const category = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Categoria MC', type: 'despesa' });
+      const categoryId = (category.body as EnvelopeBody<CategoryData>).data
+        ?.id as string;
+
+      await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          type: 'expense',
+          amount: '40.00',
+          accountId,
+          categoryId,
+          description: 'Gasto mês atual',
+          date: todayIso(),
+        })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          type: 'expense',
+          amount: '25.00',
+          accountId,
+          categoryId,
+          description: 'Gasto mês anterior',
+          date: dateInPreviousMonthIso(),
+        })
+        .expect(201);
+
+      const response = await request(app.getHttpServer())
+        .get(`/reports/month-comparison?month=${currentMonthIso()}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(response.status).toBe(200);
+      const entries = (response.body as EnvelopeBody<MonthComparisonData[]>)
+        .data as MonthComparisonData[];
+      const entry = entries.find((item) => item.categoryId === categoryId);
+      expect(entry?.currentMonthTotal).toBe('40.00');
+      expect(entry?.previousMonthTotal).toBe('25.00');
+      expect(entry?.delta).toBe('15.00');
+    });
+
+    it('rejects a malformed "month" (2026-13) with 400', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/reports/month-comparison?month=2026-13')
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('rejects a malformed "month" (not-a-month) with 400', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/reports/month-comparison?month=not-a-month')
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(response.status).toBe(400);
+    });
+
+    it('rejects a missing "month" with 400', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/reports/month-comparison')
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(response.status).toBe(400);
     });
   });
 });

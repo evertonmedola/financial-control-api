@@ -89,4 +89,105 @@ describe('ReportsService', () => {
       expect(result.balance).toBe('0.00');
     });
   });
+
+  describe('getMonthComparison', () => {
+    it('calls sumByCategoryForDateRangeExcludingTransfers twice with the correct current/previous month bounds', async () => {
+      categoriesService.findAll.mockResolvedValue([
+        { id: 'category-1', name: 'Alimentação' },
+      ] as never);
+      transactionsService.sumByCategoryForDateRangeExcludingTransfers
+        .mockResolvedValueOnce(new Map([['category-1', '100.00']]))
+        .mockResolvedValueOnce(new Map([['category-1', '80.00']]));
+
+      await service.getMonthComparison('user-id', '2026-03');
+
+      expect(
+        transactionsService.sumByCategoryForDateRangeExcludingTransfers,
+      ).toHaveBeenNthCalledWith(
+        1,
+        'user-id',
+        expect.stringMatching(/^2026-03-01$/),
+        expect.stringMatching(/^2026-03-\d{2}$/),
+      );
+      expect(
+        transactionsService.sumByCategoryForDateRangeExcludingTransfers,
+      ).toHaveBeenNthCalledWith(
+        2,
+        'user-id',
+        expect.stringMatching(/^2026-02-01$/),
+        expect.stringMatching(/^2026-02-\d{2}$/),
+      );
+    });
+
+    it('a category present only in the previous month appears with currentMonthTotal 0.00 and a negative delta', async () => {
+      categoriesService.findAll.mockResolvedValue([
+        { id: 'category-1', name: 'Alimentação' },
+      ] as never);
+      transactionsService.sumByCategoryForDateRangeExcludingTransfers
+        .mockResolvedValueOnce(new Map())
+        .mockResolvedValueOnce(new Map([['category-1', '80.00']]));
+
+      const result = await service.getMonthComparison('user-id', '2026-03');
+
+      expect(result).toEqual([
+        {
+          categoryId: 'category-1',
+          categoryName: 'Alimentação',
+          currentMonthTotal: '0.00',
+          previousMonthTotal: '80.00',
+          delta: '-80.00',
+        },
+      ]);
+    });
+
+    it('a category present only in the current month appears with previousMonthTotal 0.00 and a positive delta', async () => {
+      categoriesService.findAll.mockResolvedValue([
+        { id: 'category-1', name: 'Alimentação' },
+      ] as never);
+      transactionsService.sumByCategoryForDateRangeExcludingTransfers
+        .mockResolvedValueOnce(new Map([['category-1', '100.00']]))
+        .mockResolvedValueOnce(new Map());
+
+      const result = await service.getMonthComparison('user-id', '2026-03');
+
+      expect(result).toEqual([
+        {
+          categoryId: 'category-1',
+          categoryName: 'Alimentação',
+          currentMonthTotal: '100.00',
+          previousMonthTotal: '0.00',
+          delta: '100.00',
+        },
+      ]);
+    });
+
+    it('a January month rolls its previous-month bounds into December of the prior year', async () => {
+      categoriesService.findAll.mockResolvedValue([]);
+      transactionsService.sumByCategoryForDateRangeExcludingTransfers
+        .mockResolvedValueOnce(new Map())
+        .mockResolvedValueOnce(new Map());
+
+      await service.getMonthComparison('user-id', '2026-01');
+
+      expect(
+        transactionsService.sumByCategoryForDateRangeExcludingTransfers,
+      ).toHaveBeenNthCalledWith(
+        2,
+        'user-id',
+        expect.stringMatching(/^2025-12-01$/),
+        expect.stringMatching(/^2025-12-31$/),
+      );
+    });
+
+    it('skips a category with no active name (soft-deleted after transactions referencing it still exist)', async () => {
+      categoriesService.findAll.mockResolvedValue([]);
+      transactionsService.sumByCategoryForDateRangeExcludingTransfers
+        .mockResolvedValueOnce(new Map([['ghost-category', '10.00']]))
+        .mockResolvedValueOnce(new Map());
+
+      const result = await service.getMonthComparison('user-id', '2026-03');
+
+      expect(result).toEqual([]);
+    });
+  });
 });
