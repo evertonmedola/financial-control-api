@@ -2,7 +2,12 @@
 # bindings; runner ships only dist/ + production node_modules (no /src,
 # no tsconfig.json, no devDependencies-only packages).
 
-FROM node:24-alpine AS builder
+# Single source of truth for the base image so builder and runner always
+# resolve to the same tag (native-ABI parity for argon2). Override with
+# --build-arg NODE_IMAGE=node:24.x-alpine3.y@sha256:... to pin a digest.
+ARG NODE_IMAGE=node:24-alpine
+
+FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 
 # Defensive native-module build toolchain (D-04) — argon2@^0.45.1 may need
@@ -33,7 +38,7 @@ RUN npm prune --omit=dev
 # ROADMAP Success Criterion #1.
 RUN rm -rf node_modules/typescript node_modules/ts-node
 
-FROM node:24-alpine AS runner
+FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
