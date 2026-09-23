@@ -5,7 +5,7 @@ All commands are the ones proven while building Phase 8 (plans 08-01 to 08-03). 
 
 **HTTP only. Use throwaway data only. No real financial data until HTTPS exists (D-06).**
 
-**Current status: the stack is DESTROYED (cost control, end of Phase 8).** All billable resources (NAT gateway, ALB, RDS, ECS service, Elastic IP) are gone. Two free IAM roles (`financial-control-ecs-execution`, `financial-control-ecs-task`) are still in Terraform state because `terraform destroy` failed on `iam:ListInstanceProfilesForRole` (missing on the developer policy; the grant is pending, see "Cost and destroy"); add that action and re-run `terraform -chdir=infra destroy` to finish, or simply run `apply` again, which reuses them. Re-creating the stack is `apply` (about 15-20 minutes) and gives an EMPTY database, so run the migration again. The state bucket, the JWT secret and the ECR repository still exist.
+**Current status: the stack is DESTROYED (cost control, end of Phase 8).** All billable resources (NAT gateway, ALB, RDS, ECS service, Elastic IP) are gone. The destroy is fully complete: the first run stopped on the two free IAM roles (`financial-control-ecs-execution`, `financial-control-ecs-task`) because `iam:ListInstanceProfilesForRole` was missing on the developer policy; after that permission was granted, a second `terraform destroy` removed them (2 resources destroyed) and the Terraform state is now empty. Re-creating the stack is `apply` (about 15-20 minutes) and gives an EMPTY database, so run the migration again. The state bucket, the JWT secret and the ECR repository still exist.
 
 ## Architecture and why each AWS service
 
@@ -150,7 +150,7 @@ export PATH="$PATH:/c/Terraform"
 terraform -chdir=infra destroy
 ```
 
-RDS is configured with `skip_final_snapshot` and no deletion protection, and the ALB has no deletion protection, so neither blocks a destroy. Destroying the two IAM roles (`financial-control-ecs-execution`, `financial-control-ecs-task`) does need one extra permission on the developer policy: `iam:ListInstanceProfilesForRole`. Without it, `terraform destroy` removes everything else and then fails on those two free roles (this happened at the end of Phase 8). Add that action before running a full destroy; the grant is pending and will be resolved by the account owner.
+RDS is configured with `skip_final_snapshot` and no deletion protection, and the ALB has no deletion protection, so neither blocks a destroy. Destroying the two IAM roles (`financial-control-ecs-execution`, `financial-control-ecs-task`) needs one extra permission on the developer policy: `iam:ListInstanceProfilesForRole`. Without it, `terraform destroy` removes everything else and then fails on those two free roles, which is what happened at the end of Phase 8. That permission has since been granted and the second destroy finished cleanly (2 resources destroyed). Keep it on the policy (or on its replacement) so a full destroy works in one run.
 
 Survives a destroy (created outside Terraform): the S3 state bucket, the JWT secret, and the ECR repository. The next `apply` creates an EMPTY database, so run the migration again. Never delete the state bucket while resources exist.
 
