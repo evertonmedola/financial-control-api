@@ -203,12 +203,12 @@ Plans:
   2. The containerized API starts, connects to PostgreSQL, and serves requests identically to the local (non-containerized) version.
   3. A health-check endpoint reports app and database connection status, ready for later use by an AWS load balancer.
 
-**Plans**: 2 plans
+**Plans**: 1/2 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 07-01-PLAN.md — Health module (Terminus) + multi-stage Dockerfile + docker-compose api service, verified end-to-end
+- [x] 07-01-PLAN.md — Health module (Terminus) + multi-stage Dockerfile + docker-compose api service, verified end-to-end
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -263,7 +263,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 4. Transactions & Transfers | 4/4 | Complete    | 2026-09-14 |
 | 5. Budgets | 2/2 | Complete    | 2026-09-22 |
 | 6. Reports | 3/3 | Complete    | 2026-09-23 |
-| 7. Containerization | 0/2 | Not started | - |
+| 7. Containerization | 1/2 | In Progress|  |
 | 8. AWS Infrastructure | 0/TBD | Not started | - |
 | 9. CI/CD Pipeline | 0/TBD | Not started | - |
 
