@@ -36,6 +36,9 @@ export function configureApp(app: INestApplication): void {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   configureApp(app);
+  // Close the HTTP server and TypeORM pool on SIGTERM/SIGINT (docker stop,
+  // ECS task stop) instead of hanging until SIGKILL.
+  app.enableShutdownHooks();
   const configService = app.get(ConfigService);
   const port = configService.getOrThrow<number>('PORT');
   await app.listen(port);
