@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AccountsService } from '../accounts/accounts.service';
 import { AccountType } from '../accounts/entities/account.entity';
@@ -44,6 +45,67 @@ describe('ReportsService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('getCategorySummary', () => {
+    it('throws BadRequestException when from > to', async () => {
+      await expect(
+        service.getCategorySummary('user-id', '2026-09-20', '2026-09-01'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('returns [] without calling categoriesService.findAll when there is no spend in range', async () => {
+      transactionsService.sumByCategoryForDateRangeExcludingTransfers.mockResolvedValue(
+        new Map(),
+      );
+
+      const result = await service.getCategorySummary(
+        'user-id',
+        '2026-09-01',
+        '2026-09-30',
+      );
+
+      expect(result).toEqual([]);
+      expect(categoriesService.findAll).not.toHaveBeenCalled();
+    });
+
+    it('skips a category with no active name (soft-deleted after transactions referencing it still exist)', async () => {
+      categoriesService.findAll.mockResolvedValue([]);
+      transactionsService.sumByCategoryForDateRangeExcludingTransfers.mockResolvedValue(
+        new Map([['ghost-category', '10.00']]),
+      );
+
+      const result = await service.getCategorySummary(
+        'user-id',
+        '2026-09-01',
+        '2026-09-30',
+      );
+
+      expect(result).toEqual([]);
+    });
+
+    it('builds a summary entry for a category with an active name', async () => {
+      categoriesService.findAll.mockResolvedValue([
+        { id: 'category-1', name: 'Alimentação' },
+      ] as never);
+      transactionsService.sumByCategoryForDateRangeExcludingTransfers.mockResolvedValue(
+        new Map([['category-1', '50.00']]),
+      );
+
+      const result = await service.getCategorySummary(
+        'user-id',
+        '2026-09-01',
+        '2026-09-30',
+      );
+
+      expect(result).toEqual([
+        {
+          categoryId: 'category-1',
+          categoryName: 'Alimentação',
+          total: '50.00',
+        },
+      ]);
+    });
   });
 
   describe('getNetBalance', () => {
