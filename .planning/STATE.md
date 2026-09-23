@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 6
+current_phase: 06
 current_phase_name: Reports
-status: planning
-stopped_at: Phase 05 complete, ready to plan Phase 6
-last_updated: "2026-09-22T22:55:54.806Z"
+status: executing
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-09-23T03:13:08.500Z"
 last_activity: 2026-09-22
-last_activity_desc: Phase 05 complete, transitioned to Phase 6
-state_head: 8623b452a456f35328066a23e4f8fcabc2c98b35
+last_activity_desc: Phase 06 execution started
+state_head: 1fff154afa277e2913f3beb9bc09d0de1f583154
 progress:
   total_phases: 9
-  completed_phases: 1
-  total_plans: 17
-  completed_plans: 17
-  percent: 11
+  completed_phases: 0
+  total_plans: 20
+  completed_plans: 18
+  percent: 0
 ---
 
 # Project State
@@ -27,12 +27,12 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 
 ## Current Position
 
-Phase: 6 — Reports
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-09-22 — Phase 05 complete, transitioned to Phase 6
+Phase: 06 (Reports) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-09-22 — Phase 06 execution started
 
-Progress: [████████████████████] 8/8 plans ([█░░░░░░░░░] 11%)
+Progress: [████████████████████] 8/8 plans ([░░░░░░░░░░] 0%)
 
 ## Performance Metrics
 
@@ -76,6 +76,7 @@ Progress: [████████████████████] 8/8 pla
 | Phase 04 P04 | 14min | 2 tasks | 2 files |
 | Phase 05 P01 | 45min | 2 tasks | 16 files |
 | Phase 05 P02 | 20min | 2 tasks | 1 files |
+| Phase 06 P01 | 8min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,8 @@ Recent decisions affecting current work:
 - [Phase 05]: [Phase 05-01]: Budgets tracer proves TransactionsService.sumByCategoryExcludingTransfers (first grouped read-side aggregation) correctly excludes TRANSFER rows from category spend, reusing Phase 4's TXN-04 exclusion rule in a read path for the first time
 - [Phase 05]: [Phase 05-01]: Fixed test-authoring bug — literal '11111111-1111-1111-1111-111111111111' is not a valid UUID (wrong variant nibble); replaced with a proper v4 UUID in the nonexistent-categoryId IDOR test
 - [Phase 05]: [Phase 05-02] Cross-tenant IDOR suite confirmed BudgetsService/Controller (from 05-01) already enforce ownership correctly on every route and on create-time categoryId reference — no production code fix needed; full 65/65 unit + 146/146 e2e suite green, security-review checklist found zero new gaps
+- [Phase 06]: [Phase 06-01]: sumByCategoryForDateRangeExcludingTransfers added as a new, parallel TransactionsService method (not a signature change) — existing sumByCategoryExcludingTransfers verified byte-identical via git diff, zero regression risk to Budgets' Phase-5 aggregation
+- [Phase 06]: [Phase 06-01]: A category soft-deleted after transactions referencing it still exist is silently skipped from the category-summary output, consistent with every other list/aggregate endpoint's soft-delete exclusion convention
 
 ### Pending Todos
 
@@ -138,6 +141,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-22T22:04:52.633Z
-Stopped at: Phase 05 complete, ready to plan Phase 6
+Last session: 2026-09-23T03:13:08.286Z
+Stopped at: Completed 06-01-PLAN.md
 Resume file: None
