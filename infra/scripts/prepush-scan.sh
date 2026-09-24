@@ -21,6 +21,9 @@ set -u
 export MSYS_NO_PATHCONV=1 PYTHONIOENCODING=utf-8 PYTHONUTF8=1
 
 REPO="${SCAN_REPO_DIR:-$(git rev-parse --show-toplevel)}"
+# Native git.exe cannot resolve MSYS paths such as /tmp/x while MSYS_NO_PATHCONV=1;
+# normalize to a native path (pwd -W on Git Bash, plain pwd elsewhere).
+REPO="$(cd "$REPO" && { pwd -W 2>/dev/null || pwd; })"
 R=sa-east-1
 SECRET_ID=financial-control/jwt-access-secret
 ACCOUNT_ID=796897109626
