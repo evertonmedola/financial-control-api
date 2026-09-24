@@ -76,3 +76,10 @@ infra/.terraform/
 *.tfvars
 crash.log
 tfplan*
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
