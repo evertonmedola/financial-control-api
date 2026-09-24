@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
 current_phase: 09
-current_phase_name: ci-cd-pipeline
+current_phase_name: CI/CD Pipeline
 status: executing
-stopped_at: Phase 9 context gathered
-last_updated: "2026-09-24T00:11:09.024Z"
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-09-24T00:40:52.630Z"
 last_activity: 2026-09-23
-last_activity_desc: Phase 08 complete, transitioned to Phase 9
-state_head: 10a41efd3b01f8d35ba7659e707b62e7e5e77003
+last_activity_desc: Phase 09 execution started
+state_head: 6bde400161dd8d0de97d0912dcde7c40151dbdc8
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 30
-  completed_plans: 26
+  completed_plans: 27
   percent: 11
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-22)
 
 **Core value:** A API funciona localmente, com segurança tratada como requisito central (não como extra), e evolui em etapas incrementais claras até chegar a um deploy AWS completo e auditável.
-**Current focus:** Phase 08 — AWS Infrastructure
+**Current focus:** Phase 09 — CI/CD Pipeline
 
 ## Current Position
 
-Phase: 09 (ci-cd-pipeline) — READY TO EXECUTE
-Plan: Not started
+Phase: 09 (CI/CD Pipeline) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-09-23 — Phase 08 complete, transitioned to Phase 9
+Last activity: 2026-09-23 — Phase 09 execution started
 
 Progress: [████████████████████] 8/8 plans ([█░░░░░░░░░] 11%)
 
@@ -86,6 +86,7 @@ Progress: [████████████████████] 8/8 pla
 | Phase 08 P02 | 30min | 2 tasks | 5 files |
 | Phase 08 P03 | 20min | 2 tasks | 2 files |
 | Phase 08 P04 | 40min | 2 tasks | 2 files |
+| Phase 09 P01 | 65 min | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -132,6 +133,7 @@ Recent decisions affecting current work:
 - [Phase 08]: 08-01: IAM Option B (scoped customer-managed policy) chosen for medolaFinance; state bucket + JWT secret created outside Terraform
 - [Phase 08]: 08-02: RDS backup retention 1 day (free-tier plan limit); image arch X86_64
 - [Phase 08]: Phase 8 stack destroyed for cost control (human chose destroy-now); 2 free IAM roles remain (iam:ListInstanceProfilesForRole missing)
+- [Phase 09]: Phase 9-01: spec/e2e ESLint no-unsafe-* and unbound-method scoped to warn; prod src strict
 
 ### Pending Todos
 
@@ -156,6 +158,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-23T20:18:03.716Z
-Stopped at: Phase 9 context gathered
-Resume file: .planning/phases/09-ci-cd-pipeline/09-CONTEXT.md
+Last session: 2026-09-24T00:40:52.338Z
+Stopped at: Completed 09-01-PLAN.md
+Resume file: None
