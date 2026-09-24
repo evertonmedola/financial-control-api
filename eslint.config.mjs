@@ -36,4 +36,15 @@ export default tseslint.config(
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },
+  {
+    // Test code: mocks and supertest responses are inherently loosely typed.
+    files: ["**/*.spec.ts", "test/**/*.ts"],
+    rules: {
+      "@typescript-eslint/unbound-method": "warn",
+      "@typescript-eslint/no-unsafe-assignment": "warn",
+      "@typescript-eslint/no-unsafe-member-access": "warn",
+      "@typescript-eslint/no-unsafe-call": "warn",
+      "@typescript-eslint/no-unsafe-return": "warn",
+    },
+  },
 );

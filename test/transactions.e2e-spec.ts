@@ -697,8 +697,8 @@ describe('Transactions (e2e)', () => {
           date: '2026-09-13',
         })
         .expect(201);
-      const transactionId = (created.body as EnvelopeBody<TransactionData>)
-        .data?.id as string;
+      const transactionId = (created.body as EnvelopeBody<TransactionData>).data
+        ?.id as string;
 
       const emptyPatch = await request(app.getHttpServer())
         .patch(`/transactions/${transactionId}`)
@@ -739,8 +739,8 @@ describe('Transactions (e2e)', () => {
           date: '2026-09-13',
         })
         .expect(201);
-      const transactionId = (created.body as EnvelopeBody<TransactionData>)
-        .data?.id as string;
+      const transactionId = (created.body as EnvelopeBody<TransactionData>).data
+        ?.id as string;
 
       const nullDate = await request(app.getHttpServer())
         .patch(`/transactions/${transactionId}`)

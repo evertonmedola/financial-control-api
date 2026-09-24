@@ -14,7 +14,9 @@ export class UpdateCategoryDto {
   // prevents a whitespace-only name and prevents leading/trailing whitespace
   // from defeating the D-03 unique index on the literal `name` column.
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @MinLength(1)
   @MaxLength(100)

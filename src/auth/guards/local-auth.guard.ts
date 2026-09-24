@@ -1,8 +1,4 @@
-import {
-  ExecutionContext,
-  Injectable,
-  ValidationPipe,
-} from '@nestjs/common';
+import { ExecutionContext, Injectable, ValidationPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { LoginDto } from '../dto/login.dto';
 

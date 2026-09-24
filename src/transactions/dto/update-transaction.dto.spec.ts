@@ -24,9 +24,7 @@ describe('UpdateTransactionDto', () => {
     const errors = await validate(dto);
 
     expect(errors).not.toHaveLength(0);
-    expect(errors.some((error) => error.property === 'description')).toBe(
-      true,
-    );
+    expect(errors.some((error) => error.property === 'description')).toBe(true);
   });
 
   it('passes validation when both fields are omitted (undefined)', async () => {

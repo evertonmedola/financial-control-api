@@ -8,9 +8,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * missing FK (`ON DELETE CASCADE` so deleting a user cleans up their
  * refresh tokens instead of leaving orphaned rows).
  */
-export class AddRefreshTokensUserFk1789223051154
-  implements MigrationInterface
-{
+export class AddRefreshTokensUserFk1789223051154 implements MigrationInterface {
   name = 'AddRefreshTokensUserFk1789223051154';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

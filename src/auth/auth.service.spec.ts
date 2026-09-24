@@ -348,15 +348,11 @@ describe('AuthService', () => {
         service.refresh(rawToken),
       ]);
 
-      const fulfilled = [first, second].filter(
-        (r) => r.status === 'fulfilled',
-      );
+      const fulfilled = [first, second].filter((r) => r.status === 'fulfilled');
       const rejected = [first, second].filter((r) => r.status === 'rejected');
       expect(fulfilled).toHaveLength(1);
       expect(rejected).toHaveLength(1);
-      expect((rejected[0] as PromiseRejectedResult).reason).toBeInstanceOf(
-        UnauthorizedException,
-      );
+      expect(rejected[0].reason).toBeInstanceOf(UnauthorizedException);
     });
   });
 

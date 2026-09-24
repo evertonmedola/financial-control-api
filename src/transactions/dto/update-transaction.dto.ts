@@ -30,7 +30,9 @@ export class UpdateTransactionDto {
   // Trimmed before validation, same rationale as CreateTransactionDto:
   // prevents a whitespace-only description.
   @ValidateIf((_dto, value) => value !== undefined)
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @MinLength(1)
   @MaxLength(255)

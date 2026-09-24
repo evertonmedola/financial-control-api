@@ -8,7 +8,9 @@ export class CreateCategoryDto {
   // the literal `name` column, leading/trailing whitespace could be used to
   // trivially defeat per-user (name, type) uniqueness (e.g. "Comida" vs
   // "Comida ").
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @MinLength(1)
   @MaxLength(100)

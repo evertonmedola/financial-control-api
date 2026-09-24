@@ -388,9 +388,7 @@ describe('Reports (e2e)', () => {
 
     it('rejects a client-supplied userId in the query string with 400 instead of honoring it (WR-02, Pitfall 3 / IDOR)', async () => {
       const response = await request(app.getHttpServer())
-        .get(
-          '/reports/net-balance?userId=11111111-1111-1111-1111-111111111111',
-        )
+        .get('/reports/net-balance?userId=11111111-1111-1111-1111-111111111111')
         .set('Authorization', `Bearer ${netBalanceAccessToken}`);
       expect(response.status).toBe(400);
     });

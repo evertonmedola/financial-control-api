@@ -132,7 +132,7 @@ export class AuthService {
       .execute();
 
     if (rotateResult.affected === 1) {
-      const rotated = rotateResult.raw[0] as { user_id: string };
+      const rotated = (rotateResult.raw as { user_id: string }[])[0];
       return this.issueTokenPair(rotated.user_id);
     }
 
