@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../entities/user.entity';
 
 /**
@@ -7,8 +8,26 @@ import { User } from '../entities/user.entity';
  * (Task 2) is wired up.
  */
 export class UserResponseDto {
+  @ApiProperty({
+    description: 'Unique user identifier.',
+    format: 'uuid',
+    example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+  })
   id!: string;
+
+  @ApiProperty({
+    description: 'E-mail address of the user.',
+    format: 'email',
+    example: 'user@example.com',
+  })
   email!: string;
+
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    description: 'Registration timestamp (ISO 8601).',
+    example: '2026-09-13T14:30:00.000Z',
+  })
   createdAt!: Date;
 
   static fromEntity(user: User): UserResponseDto {

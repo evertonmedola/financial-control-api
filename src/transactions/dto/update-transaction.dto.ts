@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsDateString,
@@ -29,6 +30,13 @@ export class UpdateTransactionDto {
   //
   // Trimmed before validation, same rationale as CreateTransactionDto:
   // prevents a whitespace-only description.
+  @ApiPropertyOptional({
+    description:
+      'New description (only description and date are editable). Trimmed.',
+    minLength: 1,
+    maxLength: 255,
+    example: 'Weekly groceries and cleaning supplies',
+  })
   @ValidateIf((_dto, value) => value !== undefined)
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
@@ -38,6 +46,12 @@ export class UpdateTransactionDto {
   @MaxLength(255)
   description?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'New transaction date (only description and date are editable).',
+    format: 'date',
+    example: '2026-09-14',
+  })
   @ValidateIf((_dto, value) => value !== undefined)
   @IsDateString()
   date?: string;

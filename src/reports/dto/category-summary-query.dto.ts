@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { IsDateString } from 'class-validator';
 
 // The codebase's first `@Query()`-bound DTO (06-PATTERNS.md's "No Analog
@@ -9,9 +10,19 @@ import { IsDateString } from 'class-validator';
 // (CONTEXT.md's "Date Range Input" decision: both params required, no hard
 // cap on range size).
 export class CategorySummaryQueryDto {
+  @ApiProperty({
+    description: 'Inclusive start of the date range. Must not be after `to`.',
+    format: 'date',
+    example: '2026-09-01',
+  })
   @IsDateString()
   from!: string;
 
+  @ApiProperty({
+    description: 'Inclusive end of the date range. Must not be before `from`.',
+    format: 'date',
+    example: '2026-09-30',
+  })
   @IsDateString()
   to!: string;
 }

@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Matches, ValidateIf } from 'class-validator';
 
 /**
@@ -24,6 +25,13 @@ export class UpdateBudgetDto {
   // whose underlying `matches()` requires `typeof value === 'string'` and
   // therefore correctly fails (400) instead of reaching the NOT NULL
   // `limit` column and crashing with an unhandled 500.
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      'New monthly spending limit as a positive decimal string (no sign, not zero, max 2 decimals).',
+    pattern: '^(?!0+(\\.0{1,2})?$)\\d{1,10}(\\.\\d{1,2})?$',
+    example: '950.00',
+  })
   @ValidateIf((_dto, value) => value !== undefined)
   @Matches(/^(?!0+(\.0{1,2})?$)\d{1,10}(\.\d{1,2})?$/, {
     message:

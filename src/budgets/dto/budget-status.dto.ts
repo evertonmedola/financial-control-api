@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import {
   isGreaterThanDecimalString,
   subtractDecimalStrings,
@@ -12,10 +13,42 @@ import {
  * BUD-03's "must not silently return just a negative number" requirement.
  */
 export class BudgetStatusDto {
+  @ApiProperty({
+    description: 'Id of the expense category the budget applies to.',
+    format: 'uuid',
+    example: 'c9bf9e57-1685-4c89-bafb-ff5af830be8a',
+  })
   categoryId!: string;
+
+  @ApiProperty({
+    type: String,
+    description:
+      'Monthly spending limit (decimal string, never a JSON number).',
+    example: '800.00',
+  })
   limit!: string;
+
+  @ApiProperty({
+    type: String,
+    description:
+      'Amount spent in the category during the current calendar month (decimal string).',
+    example: '650.25',
+  })
   spent!: string;
+
+  @ApiProperty({
+    type: String,
+    description:
+      'Limit minus spent (decimal string). Never clamped: negative when over budget.',
+    example: '149.75',
+  })
   remaining!: string;
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'True when the spent amount exceeds the limit.',
+    example: false,
+  })
   overBudget!: boolean;
 
   static build(

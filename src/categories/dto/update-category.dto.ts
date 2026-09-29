@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
@@ -13,6 +14,12 @@ export class UpdateCategoryDto {
   // Trimmed before validation (WR-02) — same rationale as CreateCategoryDto:
   // prevents a whitespace-only name and prevents leading/trailing whitespace
   // from defeating the D-03 unique index on the literal `name` column.
+  @ApiPropertyOptional({
+    description: 'New category name (the only editable field). Trimmed.',
+    minLength: 1,
+    maxLength: 100,
+    example: 'Supermarket',
+  })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
