@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 /**
@@ -13,6 +14,12 @@ import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
  * 400 automatically — no manual guard code is needed here.
  */
 export class UpdateAccountDto {
+  @ApiPropertyOptional({
+    description: 'New display name of the account (the only editable field).',
+    minLength: 1,
+    maxLength: 100,
+    example: 'Nubank Savings',
+  })
   @IsOptional()
   @IsString()
   @MinLength(1)

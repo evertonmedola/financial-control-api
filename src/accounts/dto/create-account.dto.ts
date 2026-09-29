@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import {
   IsEnum,
   IsString,
@@ -8,6 +9,12 @@ import {
 import { AccountType } from '../entities/account.entity';
 
 export class CreateAccountDto {
+  @ApiProperty({
+    description: 'Display name of the account.',
+    minLength: 1,
+    maxLength: 100,
+    example: 'Nubank Checking',
+  })
   @IsString()
   @MinLength(1)
   @MaxLength(100)
@@ -15,6 +22,13 @@ export class CreateAccountDto {
 
   // Rejects any value outside the four canonical types with 400 rather than
   // silently defaulting — the concrete mitigation for prohibition P1.
+  @ApiProperty({
+    description:
+      'Account type: corrente (checking), poupanca (savings), carteira (cash wallet) or cartao_credito (credit card).',
+    enum: AccountType,
+    enumName: 'AccountType',
+    example: AccountType.CORRENTE,
+  })
   @IsEnum(AccountType)
   type!: AccountType;
 
@@ -24,6 +38,13 @@ export class CreateAccountDto {
   // negative balances at creation for non-credit-card types (CONTEXT.md
   // discretion: real accounts can start overdrawn); no type-specific
   // restriction is applied here.
+  @ApiProperty({
+    type: String,
+    description:
+      'Initial balance as a decimal string with up to 2 decimals (negative allowed), never a JSON number.',
+    pattern: '^-?\\d+(\\.\\d{1,2})?$',
+    example: '1500.00',
+  })
   @Matches(/^-?\d+(\.\d{1,2})?$/, {
     message: 'balance deve ser uma string decimal com até 2 casas',
   })

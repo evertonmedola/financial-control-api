@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -33,9 +34,34 @@ export function configureApp(app: INestApplication): void {
   app.useGlobalFilters(new HttpExceptionFilter());
 }
 
+// Swagger lives in bootstrap() only, NOT in configureApp(): configureApp is
+// shared byte-for-byte with test/security.e2e-spec.ts, and e2e apps must stay
+// unchanged. Docs are served at /api/docs (UI) and /api/docs-json (OpenAPI).
+function setupSwagger(app: INestApplication): void {
+  const config = new DocumentBuilder()
+    .setTitle('Financial Control API')
+    .setDescription(
+      'Personal finance control API: accounts, categories, income/expense transactions, transfers, monthly budgets and reports. ' +
+        'Authentication uses JWT bearer tokens. Every successful response is wrapped in a { data, timestamp } envelope.',
+    )
+    .setVersion('1.0')
+    .addBearerAuth({
+      type: 'http',
+      scheme: 'bearer',
+      bearerFormat: 'JWT',
+      description: 'Access token returned by POST /auth/login',
+    })
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: { persistAuthorization: true },
+  });
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   configureApp(app);
+  setupSwagger(app);
   // Close the HTTP server and TypeORM pool on SIGTERM/SIGINT (docker stop,
   // ECS task stop) instead of hanging until SIGKILL.
   app.enableShutdownHooks();
