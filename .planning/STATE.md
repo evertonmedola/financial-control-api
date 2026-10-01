@@ -148,6 +148,12 @@ None yet.
 - [Phase 5, non-blocking] No dedicated regression test proves an INCOME transaction posted against a DESPESA-category budget is excluded from `spent` (the `type = EXPENSE` filter in `sumByCategoryExcludingTransfers` is correct by inspection and by the passing transfer-exclusion e2e test, but that specific INCOME-vs-DESPESA case has no test of its own).
 - Repo has no `origin` git remote configured — `workflow.use_worktrees` was set to `false` (2026-09-22) since the harness-worktree fork-base check can never resolve `origin/HEAD` without one. All phase execution now runs sequentially on `master` in the main checkout.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261001-k0j | Saldo de cartão de crédito como saldo comum (negativo = dívida) | 2026-10-01 | 68f326a | [261001-k0j-credit-card-balance](./quick/261001-k0j-credit-card-balance/) |
+
 ## Deferred Items
 
 Items acknowledged and deferred at milestone close, most recent first:
