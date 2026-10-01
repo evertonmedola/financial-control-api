@@ -94,6 +94,25 @@ describe('Credit card balance semantics (e2e)', () => {
       .expect(201);
   };
 
+  const createTransfer = async (
+    token: string,
+    fromAccountId: string,
+    toAccountId: string,
+    amount: string,
+  ): Promise<void> => {
+    await request(app.getHttpServer())
+      .post('/transfers')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        fromAccountId,
+        toAccountId,
+        amount,
+        date: '2026-09-13',
+        description: 'Pagamento da fatura',
+      })
+      .expect(201);
+  };
+
   const getAccountBalance = async (
     token: string,
     id: string,
@@ -138,5 +157,26 @@ describe('Credit card balance semantics (e2e)', () => {
 
     expect(await getAccountBalance(token, cardId)).toBe('-100.00');
     expect(await getNetBalance(token)).toBe('-100.00');
+  });
+
+  it('a payment (transfer corrente -> card) moves the card toward 0.00 and never changes the net balance', async () => {
+    const token = await registerUser();
+    const checkingId = await createAccount(token, 'corrente', '1000.00');
+    const cardId = await createAccount(token, 'cartao_credito', '0.00');
+    const categoryId = await createExpenseCategory(token);
+
+    await createExpense(token, cardId, categoryId, '100.00');
+    expect(await getAccountBalance(token, cardId)).toBe('-100.00');
+    expect(await getNetBalance(token)).toBe('900.00');
+
+    await createTransfer(token, checkingId, cardId, '40.00');
+    expect(await getAccountBalance(token, cardId)).toBe('-60.00');
+    expect(await getAccountBalance(token, checkingId)).toBe('960.00');
+    expect(await getNetBalance(token)).toBe('900.00');
+
+    await createTransfer(token, checkingId, cardId, '60.00');
+    expect(await getAccountBalance(token, cardId)).toBe('0.00');
+    expect(await getAccountBalance(token, checkingId)).toBe('900.00');
+    expect(await getNetBalance(token)).toBe('900.00');
   });
 });

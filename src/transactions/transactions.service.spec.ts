@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { AccountsService } from '../accounts/accounts.service';
+import { AccountType } from '../accounts/entities/account.entity';
 import { CategoriesService } from '../categories/categories.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { Transaction, TransactionType } from './entities/transaction.entity';
@@ -151,6 +152,52 @@ describe('TransactionsService', () => {
         userId,
         dto.accountId,
         '500.00',
+      );
+    });
+
+    it('does not branch on account type: an expense on a CARTAO_CREDITO account applies -100.00 and an income (refund) applies 100.00', async () => {
+      const userId = 'user-id';
+      const expenseDto: CreateTransactionDto = {
+        type: TransactionType.EXPENSE,
+        amount: '100.00',
+        accountId: 'card-id',
+        categoryId: 'category-id',
+        description: 'Compra no cartão',
+        date: '2026-09-13',
+      };
+      const incomeDto: CreateTransactionDto = {
+        ...expenseDto,
+        type: TransactionType.INCOME,
+        description: 'Estorno no cartão',
+      };
+
+      accountsService.findOne.mockResolvedValue({
+        id: 'card-id',
+        type: AccountType.CARTAO_CREDITO,
+      } as never);
+      categoriesService.findOne.mockResolvedValue({
+        id: 'category-id',
+      } as never);
+      accountsService.adjustBalance.mockResolvedValue({} as never);
+      queryRunner.manager.create.mockReturnValue({});
+      queryRunner.manager.save.mockResolvedValue({});
+
+      await service.create(userId, expenseDto);
+      await service.create(userId, incomeDto);
+
+      expect(accountsService.adjustBalance).toHaveBeenNthCalledWith(
+        1,
+        expect.anything() as EntityManager,
+        userId,
+        'card-id',
+        '-100.00',
+      );
+      expect(accountsService.adjustBalance).toHaveBeenNthCalledWith(
+        2,
+        expect.anything() as EntityManager,
+        userId,
+        'card-id',
+        '100.00',
       );
     });
 

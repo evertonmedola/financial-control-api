@@ -86,8 +86,10 @@ describe('Accounts (e2e)', () => {
       ['poupanca', '500.00'],
       ['carteira', '500.00'],
       ['cartao_credito', '500.00'],
+      ['cartao_credito', '0.00'],
+      ['cartao_credito', '-500.00'],
     ])(
-      'POST /accounts creates a %s account and returns the balance unchanged (D-01/ACCT-03: credit card balance stays a positive "amount owed")',
+      'POST /accounts creates a %s account and returns the balance %s unchanged (stored like any account; for a card a negative balance is the open debt)',
       async (type, balance) => {
         const response = await request(app.getHttpServer())
           .post('/accounts')
