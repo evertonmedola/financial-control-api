@@ -29,7 +29,7 @@ export class AccountResponseDto {
   @ApiProperty({
     type: String,
     description:
-      'Current balance as a decimal string, never a JSON number. For cartao_credito it is the amount owed.',
+      'Current balance as a decimal string, never a JSON number. The same signed convention applies to every account type: for cartao_credito a NEGATIVE balance is the open debt (for example "-100.00" means R$ 100.00 outstanding) and 0.00 means nothing outstanding.',
     example: '1500.00',
   })
   balance!: string;

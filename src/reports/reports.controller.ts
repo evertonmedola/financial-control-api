@@ -48,7 +48,7 @@ export class ReportsController {
   // other two Reports endpoints (WR-02).
   @ApiOperation({
     summary:
-      'Consolidated net balance across all accounts (credit-card balances count as debt)',
+      'Consolidated net balance across all accounts (sum of every account balance; a credit card with open debt has a negative balance)',
   })
   @ApiEnvelopedResponse({
     status: 200,

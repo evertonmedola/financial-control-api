@@ -7,7 +7,7 @@ export class NetBalanceResponseDto {
   @ApiProperty({
     type: String,
     description:
-      'Net balance: assets minus credit-card debt (decimal string, never a JSON number).',
+      'Net balance: the plain sum of all account balances (decimal string, never a JSON number). Credit-card debt is already a negative balance, so it is added like any other balance.',
     example: '4520.75',
   })
   balance!: string;
