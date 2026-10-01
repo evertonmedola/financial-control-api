@@ -333,7 +333,7 @@ describe('Reports (e2e)', () => {
         (loginResponse.body as EnvelopeBody<AuthData>).data?.accessToken ?? '';
     });
 
-    it('GET /reports/net-balance nets a corrente asset against a cartao_credito debt, and excludes a soft-deleted account (REP-02)', async () => {
+    it('GET /reports/net-balance sums a corrente asset with a cartao_credito carrying a negative balance (open debt), and excludes a soft-deleted account (REP-02)', async () => {
       const correnteAccount = await request(app.getHttpServer())
         .post('/accounts')
         .set('Authorization', `Bearer ${netBalanceAccessToken}`)
@@ -352,7 +352,7 @@ describe('Reports (e2e)', () => {
         .send({
           name: 'Cartão NB',
           type: 'cartao_credito',
-          balance: '300.00',
+          balance: '-300.00',
         })
         .expect(201);
 
