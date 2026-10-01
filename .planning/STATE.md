@@ -153,6 +153,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 261001-k0j | Saldo de cartão de crédito como saldo comum (negativo = dívida) | 2026-10-01 | 68f326a | [261001-k0j-credit-card-balance](./quick/261001-k0j-credit-card-balance/) |
+| 261001-k0j-b | e2e-local.sh + serial e2e (maxWorkers: 1) | 2026-10-01 | dba7982, c38da1d | — |
 
 ## Deferred Items
 
