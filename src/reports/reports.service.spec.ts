@@ -109,10 +109,10 @@ describe('ReportsService', () => {
   });
 
   describe('getNetBalance', () => {
-    it('nets a mixed asset+liability list (1000.00 corrente - 300.00 cartao_credito = 700.00)', async () => {
+    it('sums uniformly: a negative cartao_credito balance is open debt (1000.00 corrente + -300.00 cartao_credito = 700.00)', async () => {
       accountsService.findAll.mockResolvedValue([
         { type: AccountType.CORRENTE, balance: '1000.00' },
-        { type: AccountType.CARTAO_CREDITO, balance: '300.00' },
+        { type: AccountType.CARTAO_CREDITO, balance: '-300.00' },
       ] as Account[]);
 
       const result = await service.getNetBalance('user-id');
@@ -132,15 +132,37 @@ describe('ReportsService', () => {
       expect(result.balance).toBe('350.00');
     });
 
-    it('nets to a negative balance when the account list is all cartao_credito debt', async () => {
+    it('nets to a negative balance when the account list is all cartao_credito open debt (uniform sum)', async () => {
       accountsService.findAll.mockResolvedValue([
-        { type: AccountType.CARTAO_CREDITO, balance: '100.00' },
-        { type: AccountType.CARTAO_CREDITO, balance: '50.00' },
+        { type: AccountType.CARTAO_CREDITO, balance: '-100.00' },
+        { type: AccountType.CARTAO_CREDITO, balance: '-50.00' },
       ] as Account[]);
 
       const result = await service.getNetBalance('user-id');
 
       expect(result.balance).toBe('-150.00');
+    });
+
+    it('adds a positive cartao_credito balance (credit/overpayment) like any other account, never subtracts it', async () => {
+      accountsService.findAll.mockResolvedValue([
+        { type: AccountType.CORRENTE, balance: '100.00' },
+        { type: AccountType.CARTAO_CREDITO, balance: '20.00' },
+      ] as Account[]);
+
+      const result = await service.getNetBalance('user-id');
+
+      expect(result.balance).toBe('120.00');
+    });
+
+    it('a cartao_credito at 0.00 contributes nothing to the net balance', async () => {
+      accountsService.findAll.mockResolvedValue([
+        { type: AccountType.CORRENTE, balance: '100.00' },
+        { type: AccountType.CARTAO_CREDITO, balance: '0.00' },
+      ] as Account[]);
+
+      const result = await service.getNetBalance('user-id');
+
+      expect(result.balance).toBe('100.00');
     });
 
     it('nets to 0.00 for an empty account list', async () => {

@@ -148,6 +148,14 @@ None yet.
 - [Phase 5, non-blocking] No dedicated regression test proves an INCOME transaction posted against a DESPESA-category budget is excluded from `spent` (the `type = EXPENSE` filter in `sumByCategoryExcludingTransfers` is correct by inspection and by the passing transfer-exclusion e2e test, but that specific INCOME-vs-DESPESA case has no test of its own).
 - Repo has no `origin` git remote configured — `workflow.use_worktrees` was set to `false` (2026-09-22) since the harness-worktree fork-base check can never resolve `origin/HEAD` without one. All phase execution now runs sequentially on `master` in the main checkout.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260928-s9u | Swagger (OpenAPI) docs via @nestjs/swagger at /api/docs | 2026-09-28 | e6631cd | [260928-s9u-adicionar-documenta-o-swagger-openapi-co](./quick/260928-s9u-adicionar-documenta-o-swagger-openapi-co/) |
+| 261001-k0j | Saldo de cartão de crédito como saldo comum (negativo = dívida) | 2026-10-01 | 68f326a | [261001-k0j-credit-card-balance](./quick/261001-k0j-credit-card-balance/) |
+| 261001-k0j-b | e2e-local.sh + serial e2e (maxWorkers: 1) | 2026-10-01 | dba7982, c38da1d | — |
+
 ## Deferred Items
 
 Items acknowledged and deferred at milestone close, most recent first:

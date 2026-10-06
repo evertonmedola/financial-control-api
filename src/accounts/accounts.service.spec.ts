@@ -96,6 +96,39 @@ describe('AccountsService', () => {
       expect(savedAccount.balance).toBe('900.00');
     });
 
+    it('applies the signed delta to a CARTAO_CREDITO account with no sign flip by account type (charge -> -100.00, payment -> 0.00)', async () => {
+      const findOneMock = jest.fn();
+      const saveMock = jest.fn();
+      const mockManager = {
+        findOne: findOneMock,
+        save: saveMock,
+      } as unknown as EntityManager;
+      const account = {
+        id: 'card-id',
+        userId: 'user-id',
+        type: AccountType.CARTAO_CREDITO,
+        balance: '0.00',
+      } as Account;
+      findOneMock.mockResolvedValue(account);
+      saveMock.mockImplementation((entity) => Promise.resolve(entity));
+
+      const afterCharge = await service.adjustBalance(
+        mockManager,
+        'user-id',
+        'card-id',
+        '-100.00',
+      );
+      expect(afterCharge.balance).toBe('-100.00');
+
+      const afterPayment = await service.adjustBalance(
+        mockManager,
+        'user-id',
+        'card-id',
+        '100.00',
+      );
+      expect(afterPayment.balance).toBe('0.00');
+    });
+
     it('throws NotFoundException when the account does not exist or is not owned by userId (error case)', async () => {
       const findOneMock = jest.fn().mockResolvedValue(null);
       const mockManager = {
