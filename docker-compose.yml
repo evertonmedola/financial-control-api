@@ -47,7 +47,7 @@ services:
     # as PORT diverges from 3000, silently forwarding to a port nothing is
     # listening on inside the container.
     ports:
-      - "${PORT:-3000}:${PORT:-3000}"
+      - "127.0.0.1:${PORT:-3000}:${PORT:-3000}"
     depends_on:
       db:
         condition: service_healthy
