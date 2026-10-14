@@ -1,7 +1,12 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EntityManager, IsNull, Repository } from 'typeorm';
+import { Transaction } from '../transactions/entities/transaction.entity';
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { Account, AccountType } from './entities/account.entity';
@@ -9,6 +14,7 @@ import { Account, AccountType } from './entities/account.entity';
 describe('AccountsService', () => {
   let service: AccountsService;
   let accountsRepository: jest.Mocked<Repository<Account>>;
+  let transactionsRepository: jest.Mocked<Repository<Transaction>>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -26,11 +32,21 @@ describe('AccountsService', () => {
             remove: jest.fn(),
           },
         },
+        {
+          provide: getRepositoryToken(Transaction),
+          useValue: {
+            count: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<AccountsService>(AccountsService);
     accountsRepository = module.get(getRepositoryToken(Account));
+    transactionsRepository = module.get(getRepositoryToken(Transaction));
+    // Default: no live transactions, so the pre-existing remove/update tests
+    // keep their meaning.
+    transactionsRepository.count.mockResolvedValue(0);
   });
 
   afterEach(() => {
@@ -235,6 +251,97 @@ describe('AccountsService', () => {
   });
 
   describe('remove', () => {
+    const conflictMessage =
+      'Não é possível excluir a conta: existem transações vinculadas a ela';
+
+    it('throws ConflictException and does not soft-delete while non-deleted transactions reference the account (account_id, from_account_id or to_account_id)', async () => {
+      accountsRepository.findOne.mockResolvedValue({
+        id: 'account-id',
+        userId: 'user-id',
+        deletedAt: null,
+      } as Account);
+      transactionsRepository.count.mockResolvedValue(1);
+
+      await expect(
+        service.remove('user-id', 'account-id'),
+      ).rejects.toBeInstanceOf(ConflictException);
+
+      expect(accountsRepository.update.mock.calls.length).toBe(0);
+      expect(transactionsRepository.count.mock.calls.length).toBe(1);
+      expect(transactionsRepository.count.mock.calls[0]).toEqual([
+        {
+          where: [
+            { accountId: 'account-id', userId: 'user-id', deletedAt: IsNull() },
+            {
+              fromAccountId: 'account-id',
+              userId: 'user-id',
+              deletedAt: IsNull(),
+            },
+            {
+              toAccountId: 'account-id',
+              userId: 'user-id',
+              deletedAt: IsNull(),
+            },
+          ],
+        },
+      ]);
+    });
+
+    it('uses a static ConflictException message that carries neither the account id nor any digit', async () => {
+      accountsRepository.findOne.mockResolvedValue({
+        id: 'account-id-123',
+        userId: 'user-id',
+        deletedAt: null,
+      } as Account);
+      transactionsRepository.count.mockResolvedValue(7);
+
+      const error = await service
+        .remove('user-id', 'account-id-123')
+        .catch((caught: ConflictException) => caught);
+
+      expect(error).toBeInstanceOf(ConflictException);
+      const message = (error as ConflictException).message;
+      expect(message).toBe(conflictMessage);
+      expect(message).not.toContain('account-id-123');
+      expect(message).not.toMatch(/\d/);
+    });
+
+    it('never counts transactions for an account that is missing or not owned: NotFoundException comes first (no cross-tenant probe through the 409)', async () => {
+      accountsRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.remove('user-id', 'foreign-account-id'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(transactionsRepository.count.mock.calls.length).toBe(0);
+      expect(accountsRepository.update.mock.calls.length).toBe(0);
+    });
+
+    it('soft-deletes with the same scoped partial update when only soft-deleted transactions remain (count 0)', async () => {
+      accountsRepository.findOne.mockResolvedValue({
+        id: 'account-id',
+        userId: 'user-id',
+        deletedAt: null,
+      } as Account);
+      transactionsRepository.count.mockResolvedValue(0);
+      accountsRepository.update.mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      });
+
+      await expect(
+        service.remove('user-id', 'account-id'),
+      ).resolves.toBeUndefined();
+
+      expect(accountsRepository.update.mock.calls).toEqual([
+        [
+          { id: 'account-id', userId: 'user-id', deletedAt: IsNull() },
+          { deletedAt: expect.any(Date) as Date },
+        ],
+      ]);
+    });
+
     it('sets deletedAt via a scoped partial update — never a hard-delete repository method (D-03), never a full-entity save (WR-02)', async () => {
       const account = {
         id: 'account-id',

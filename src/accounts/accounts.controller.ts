@@ -102,13 +102,17 @@ export class AccountsController {
   // Nest's @Delete() default status is already 200 — no @HttpCode override
   // needed. Returns {} mirroring AuthController.logout()'s already-
   // established empty-envelope convention, for response-shape consistency.
-  @ApiOperation({ summary: 'Delete an account (soft delete)' })
+  @ApiOperation({
+    summary: 'Delete an account (soft delete)',
+    description:
+      'Rejected with 409 while any non-deleted income, expense or transfer (as source or destination) references the account. Soft-deleted transactions do not block the deletion.',
+  })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Account id.' })
   @ApiEnvelopedResponse({
     status: 200,
     description: 'Account deleted; the payload is an empty object.',
   })
-  @ApiErrorResponses(400, 401, 404)
+  @ApiErrorResponses(400, 401, 404, 409)
   @Delete(':id')
   async remove(
     @CurrentUser() userId: string,

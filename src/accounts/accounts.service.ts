@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -10,6 +11,7 @@ import {
   isWithinDecimalRange,
   NUMERIC_12_2_MAX_ABS,
 } from '../common/decimal.util';
+import { Transaction } from '../transactions/entities/transaction.entity';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 import { Account } from './entities/account.entity';
@@ -19,6 +21,11 @@ export class AccountsService {
   constructor(
     @InjectRepository(Account)
     private readonly accountsRepository: Repository<Account>,
+    // Entity-only dependency, independently registered in AccountsModule
+    // (same precedent as TransfersModule) — never TransactionsService, which
+    // would make AccountsModule and TransactionsModule circular.
+    @InjectRepository(Transaction)
+    private readonly transactionsRepository: Repository<Transaction>,
   ) {}
 
   async create(userId: string, dto: CreateAccountDto): Promise<Account> {
@@ -74,8 +81,29 @@ export class AccountsService {
 
   // D-03: soft delete only. Never .delete()/.remove() on the repository —
   // Phase 4's transactions table will carry a foreign key to accounts.id.
+  //
+  // An account that still carries live history cannot be deleted: while at
+  // least one non-deleted transaction (deleted_at IS NULL) references the
+  // account as account_id (income/expense) or as from_account_id /
+  // to_account_id (either side of a transfer), remove() fails with 409.
+  // Soft-deleted transactions do not block. Ownership (findOne -> 404) runs
+  // BEFORE the count, and the count is scoped by userId too, so the 409 can
+  // never be used to probe another user's accounts. The message is static:
+  // no id, count, SQL or table name.
   async remove(userId: string, id: string): Promise<void> {
     await this.findOne(userId, id); // ownership + not-deleted check
+    const liveTransactions = await this.transactionsRepository.count({
+      where: [
+        { accountId: id, userId, deletedAt: IsNull() },
+        { fromAccountId: id, userId, deletedAt: IsNull() },
+        { toAccountId: id, userId, deletedAt: IsNull() },
+      ],
+    });
+    if (liveTransactions > 0) {
+      throw new ConflictException(
+        'Não é possível excluir a conta: existem transações vinculadas a ela',
+      );
+    }
     const result = await this.accountsRepository.update(
       { id, userId, deletedAt: IsNull() },
       { deletedAt: new Date() },

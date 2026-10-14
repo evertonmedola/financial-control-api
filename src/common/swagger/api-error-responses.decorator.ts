@@ -8,7 +8,7 @@ const ERROR_DESCRIPTIONS: Record<DocumentedErrorStatus, string> = {
   400: 'Validation failed or a business rule was violated.',
   401: 'Missing, invalid or expired credentials or token.',
   404: 'Resource not found (also returned when it belongs to another user).',
-  409: 'Conflict: the resource already exists.',
+  409: 'Conflict: the request conflicts with the current state of the resource (for example it already exists or is still referenced).',
   429: 'Too many requests: rate limit exceeded.',
 };
 
