@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   UseGuards,
@@ -70,11 +71,11 @@ export class AccountsController {
     description: 'The account.',
     model: AccountResponseDto,
   })
-  @ApiErrorResponses(401, 404)
+  @ApiErrorResponses(400, 401, 404)
   @Get(':id')
   async findOne(
     @CurrentUser() userId: string,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<AccountResponseDto> {
     const account = await this.accountsService.findOne(userId, id);
     return AccountResponseDto.fromEntity(account);
@@ -91,7 +92,7 @@ export class AccountsController {
   @Patch(':id')
   async update(
     @CurrentUser() userId: string,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAccountDto,
   ): Promise<AccountResponseDto> {
     const account = await this.accountsService.update(userId, id, dto);
@@ -107,11 +108,11 @@ export class AccountsController {
     status: 200,
     description: 'Account deleted; the payload is an empty object.',
   })
-  @ApiErrorResponses(401, 404)
+  @ApiErrorResponses(400, 401, 404)
   @Delete(':id')
   async remove(
     @CurrentUser() userId: string,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<Record<string, never>> {
     await this.accountsService.remove(userId, id);
     return {};

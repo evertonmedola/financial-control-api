@@ -902,6 +902,26 @@ describe('Transactions (e2e)', () => {
       expect(balanceAfterSecond).toBe(balanceAfterFirst);
     });
 
+    it('a malformed :id on GET/PATCH/DELETE returns 400, not a raw 500', async () => {
+      const malformedId = 'not-a-uuid';
+
+      const getResponse = await request(app.getHttpServer())
+        .get(`/transactions/${malformedId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(getResponse.status).toBe(400);
+
+      const patchResponse = await request(app.getHttpServer())
+        .patch(`/transactions/${malformedId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ description: 'nova descricao' });
+      expect(patchResponse.status).toBe(400);
+
+      const deleteResponse = await request(app.getHttpServer())
+        .delete(`/transactions/${malformedId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(deleteResponse.status).toBe(400);
+    });
+
     it('two concurrent DELETEs on the same transaction id never double-reverse the balance — exactly one 200, one 404 (edge-probe: concurrency, Pitfall 2)', async () => {
       const account = await request(app.getHttpServer())
         .post('/accounts')

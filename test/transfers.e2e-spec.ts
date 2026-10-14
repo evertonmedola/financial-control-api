@@ -336,6 +336,13 @@ describe('Transfers (e2e)', () => {
       expect(await getBalance(accountB)).toBe('500.00');
     });
 
+    it('a malformed :id on DELETE returns 400, not a raw 500', async () => {
+      const deleteResponse = await request(app.getHttpServer())
+        .delete('/transfers/not-a-uuid')
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(deleteResponse.status).toBe(400);
+    });
+
     it('a second DELETE on an already-deleted transfer id returns 404, and neither balance changes between attempts (edge-probe: idempotency)', async () => {
       const transferId = await createTransfer(accountA, accountB, '150.00');
 

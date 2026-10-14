@@ -410,6 +410,26 @@ describe('Accounts (e2e)', () => {
       }
     });
 
+    it('a malformed :id on GET/PATCH/DELETE returns 400, not a raw 500', async () => {
+      const malformedId = 'not-a-uuid';
+
+      const getResponse = await request(app.getHttpServer())
+        .get(`/accounts/${malformedId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(getResponse.status).toBe(400);
+
+      const patchResponse = await request(app.getHttpServer())
+        .patch(`/accounts/${malformedId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Novo Nome' });
+      expect(patchResponse.status).toBe(400);
+
+      const deleteResponse = await request(app.getHttpServer())
+        .delete(`/accounts/${malformedId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(deleteResponse.status).toBe(400);
+    });
+
     it('a second DELETE /accounts/:id on an already-deleted account returns 404, not a second 200 (edge-probe: idempotency)', async () => {
       const createResponse = await request(app.getHttpServer())
         .post('/accounts')

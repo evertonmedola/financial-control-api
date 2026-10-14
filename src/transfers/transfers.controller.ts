@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Param,
+  ParseUUIDPipe,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -60,11 +61,11 @@ export class TransfersController {
     status: 200,
     description: 'Transfer deleted; the payload is an empty object.',
   })
-  @ApiErrorResponses(401, 404)
+  @ApiErrorResponses(400, 401, 404)
   @Delete(':id')
   async remove(
     @CurrentUser() userId: string,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<Record<string, never>> {
     await this.transfersService.remove(userId, id);
     return {};

@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   UseGuards,
@@ -78,11 +79,11 @@ export class TransactionsController {
     description: 'The transaction.',
     model: TransactionResponseDto,
   })
-  @ApiErrorResponses(401, 404)
+  @ApiErrorResponses(400, 401, 404)
   @Get(':id')
   async findOne(
     @CurrentUser() userId: string,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<TransactionResponseDto> {
     const transaction = await this.transactionsService.findOne(userId, id);
     return TransactionResponseDto.fromEntity(transaction);
@@ -100,7 +101,7 @@ export class TransactionsController {
   @Patch(':id')
   async update(
     @CurrentUser() userId: string,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateTransactionDto,
   ): Promise<TransactionResponseDto> {
     const transaction = await this.transactionsService.update(userId, id, dto);
@@ -119,11 +120,11 @@ export class TransactionsController {
     status: 200,
     description: 'Transaction deleted; the payload is an empty object.',
   })
-  @ApiErrorResponses(401, 404)
+  @ApiErrorResponses(400, 401, 404)
   @Delete(':id')
   async remove(
     @CurrentUser() userId: string,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<Record<string, never>> {
     await this.transactionsService.remove(userId, id);
     return {};
