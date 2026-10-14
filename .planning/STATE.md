@@ -155,6 +155,7 @@ None yet.
 | 260928-s9u | Swagger (OpenAPI) docs via @nestjs/swagger at /api/docs | 2026-09-28 | e6631cd | [260928-s9u-adicionar-documenta-o-swagger-openapi-co](./quick/260928-s9u-adicionar-documenta-o-swagger-openapi-co/) |
 | 261001-k0j | Saldo de cartão de crédito como saldo comum (negativo = dívida) | 2026-10-01 | 68f326a | [261001-k0j-credit-card-balance](./quick/261001-k0j-credit-card-balance/) |
 | 261001-k0j-b | e2e-local.sh + serial e2e (maxWorkers: 1) | 2026-10-01 | dba7982, c38da1d | — |
+| 261014-fqj | 4xx em vez de 500: ParseUUIDPipe em :id (accounts/transactions/transfers), limite de 10 dígitos inteiros em DTOs decimal(12,2), 409 no DELETE de conta com transações ativas (branch fix/validation-4xx, não mesclada) | 2026-10-14 | 42b3703, 6521918, 4d7f944 | [261014-fqj-branch-fix-validation-4xx-parseuuidpipe-](./quick/261014-fqj-branch-fix-validation-4xx-parseuuidpipe-/) |
 
 ## Deferred Items
 
