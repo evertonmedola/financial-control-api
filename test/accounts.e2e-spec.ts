@@ -133,6 +133,40 @@ describe('Accounts (e2e)', () => {
       expect(response.status).toBe(201);
     });
 
+    it.each(['10000000000.00', '-10000000000.00', '12345678901'])(
+      'rejects a balance whose integer part overflows numeric(12,2) (%s) with 400, never a raw 500',
+      async (balance) => {
+        const response = await request(app.getHttpServer())
+          .post('/accounts')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ name: 'Conta Overflow', type: 'corrente', balance });
+
+        expect(response.status).toBe(400);
+      },
+    );
+
+    it.each(['9999999999.99', '-9999999999.99'])(
+      'accepts the numeric(12,2) limit %s at creation and round-trips it exactly',
+      async (balance) => {
+        const response = await request(app.getHttpServer())
+          .post('/accounts')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ name: 'Conta Limite', type: 'corrente', balance });
+
+        expect(response.status).toBe(201);
+        const created = (response.body as EnvelopeBody<AccountData>).data;
+        expect(created?.balance).toBe(balance);
+
+        const getResponse = await request(app.getHttpServer())
+          .get(`/accounts/${created?.id}`)
+          .set('Authorization', `Bearer ${accessToken}`);
+        expect(getResponse.status).toBe(200);
+        expect(
+          (getResponse.body as EnvelopeBody<AccountData>).data?.balance,
+        ).toBe(balance);
+      },
+    );
+
     it.each(['0.00', '-100.00'])(
       'accepts a %s balance for a corrente account at creation (CONTEXT.md discretion: accounts can start overdrawn)',
       async (balance) => {

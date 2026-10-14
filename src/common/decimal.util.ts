@@ -8,6 +8,13 @@
 // currency math this simple.
 
 /**
+ * Largest absolute value a `numeric(12,2)` column can hold (12 total digits,
+ * 2 after the point). accounts.balance, transactions.amount and
+ * budgets.limit are all `numeric(12,2)`.
+ */
+export const NUMERIC_12_2_MAX_ABS = '9999999999.99';
+
+/**
  * Converts a decimal string (e.g. "1234.56", "-10", "0.1") into an exact
  * integer count of cents, preserving sign.
  */

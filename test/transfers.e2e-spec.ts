@@ -30,6 +30,8 @@ interface CategoryData {
 interface TransactionData {
   id?: string;
   categoryId?: string | null;
+  fromAccountId?: string | null;
+  toAccountId?: string | null;
 }
 
 interface AuthData {
@@ -457,6 +459,143 @@ describe('Transfers (e2e)', () => {
       // category's total, while the expense row is correctly attributed.
       expect(transferRow?.categoryId).toBeNull();
       expect(expenseRow?.categoryId).toBe(categoryId);
+    });
+  });
+
+  // Every balance mutation goes through AccountsService.adjustBalance, which
+  // refuses a result outside numeric(12,2) (+/-9999999999.99) with a
+  // controlled 400. Transfers lock both accounts in ascending-id order, so
+  // the helpers below derive the roles (lowId = locked first, highId =
+  // locked second) from the same sort the service uses.
+  describe('balance overflow (numeric(12,2))', () => {
+    let incomeCategoryId: string;
+
+    beforeAll(async () => {
+      const category = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Receita Overflow Transfer', type: 'receita' })
+        .expect(201);
+      incomeCategoryId = (category.body as EnvelopeBody<CategoryData>).data
+        ?.id as string;
+    });
+
+    const createSortedPair = async (): Promise<{
+      lowId: string;
+      highId: string;
+    }> => {
+      const first = await createAccount('0.00');
+      const second = await createAccount('0.00');
+      const [lowId, highId] = [first, second].sort();
+      return { lowId, highId };
+    };
+
+    const fund = async (accountId: string, amount: string): Promise<void> => {
+      await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          type: 'income',
+          amount,
+          accountId,
+          categoryId: incomeCategoryId,
+          description: 'Aporte para teste de limite',
+          date: '2026-09-13',
+        })
+        .expect(201);
+    };
+
+    const postTransfer = (
+      fromAccountId: string,
+      toAccountId: string,
+      amount: string,
+    ) =>
+      request(app.getHttpServer())
+        .post('/transfers')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          fromAccountId,
+          toAccountId,
+          amount,
+          date: '2026-09-13',
+          description: 'Transferência no limite',
+        });
+
+    const listRowsBetween = async (
+      accountOne: string,
+      accountTwo: string,
+    ): Promise<TransactionData[]> => {
+      const list = await request(app.getHttpServer())
+        .get('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`);
+      const rows = (list.body as EnvelopeBody<TransactionData[]>).data ?? [];
+      return rows.filter(
+        (row) =>
+          (row.fromAccountId === accountOne &&
+            row.toAccountId === accountTwo) ||
+          (row.fromAccountId === accountTwo && row.toAccountId === accountOne),
+      );
+    };
+
+    it('create: overflow on the second-locked leg returns 400 and rolls the first-locked leg back', async () => {
+      const { lowId, highId } = await createSortedPair();
+      await fund(lowId, '100.00');
+      await fund(highId, '9999999999.99');
+
+      const response = await postTransfer(lowId, highId, '1.00');
+
+      expect(response.status).toBe(400);
+      expect(await getBalance(lowId)).toBe('100.00');
+      expect(await getBalance(highId)).toBe('9999999999.99');
+      expect(await listRowsBetween(lowId, highId)).toHaveLength(0);
+    });
+
+    it('create: overflow on the first-locked leg returns 400 and changes neither balance', async () => {
+      const { lowId, highId } = await createSortedPair();
+      await fund(lowId, '9999999999.99');
+      await fund(highId, '100.00');
+
+      const response = await postTransfer(highId, lowId, '1.00');
+
+      expect(response.status).toBe(400);
+      expect(await getBalance(lowId)).toBe('9999999999.99');
+      expect(await getBalance(highId)).toBe('100.00');
+      expect(await listRowsBetween(lowId, highId)).toHaveLength(0);
+    });
+
+    it('create: overflow on the negative side returns 400 and changes neither balance', async () => {
+      const overdrawn = await createAccount('-9999999999.99');
+      const other = await createAccount('0.00');
+
+      const response = await postTransfer(overdrawn, other, '0.01');
+
+      expect(response.status).toBe(400);
+      expect(await getBalance(overdrawn)).toBe('-9999999999.99');
+      expect(await getBalance(other)).toBe('0.00');
+      expect(await listRowsBetween(overdrawn, other)).toHaveLength(0);
+    });
+
+    it('delete-revert: overflow on the second-locked leg returns 400, rolls the first-locked leg back and keeps the transfer', async () => {
+      const { lowId, highId } = await createSortedPair();
+      await fund(highId, '9999999799.99');
+      const created = await postTransfer(highId, lowId, '100.00');
+      expect(created.status).toBe(201);
+      const transferId = (created.body as EnvelopeBody<TransferData>).data
+        ?.id as string;
+      expect(await getBalance(highId)).toBe('9999999699.99');
+      expect(await getBalance(lowId)).toBe('100.00');
+      await fund(highId, '300.00');
+      expect(await getBalance(highId)).toBe('9999999999.99');
+
+      const response = await request(app.getHttpServer())
+        .delete(`/transfers/${transferId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+
+      expect(response.status).toBe(400);
+      expect(await getBalance(lowId)).toBe('100.00');
+      expect(await getBalance(highId)).toBe('9999999999.99');
+      const rows = await listRowsBetween(lowId, highId);
+      expect(rows.map((row) => row.id)).toContain(transferId);
     });
   });
 });

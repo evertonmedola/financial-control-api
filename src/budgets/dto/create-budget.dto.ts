@@ -1,5 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsUUID, Matches } from 'class-validator';
+import { IsUUID } from 'class-validator';
+import {
+  IsMoneyString,
+  POSITIVE_MONEY_REGEX,
+} from '../../common/validators/is-money-string.decorator';
 
 export class CreateBudgetDto {
   @ApiProperty({
@@ -10,20 +14,19 @@ export class CreateBudgetDto {
   @IsUUID()
   categoryId!: string;
 
-  // Same regex as CreateTransactionDto.amount (05-PATTERNS.md's explicit
-  // instruction to match it exactly) — no sign, no all-zero value, max 2
-  // decimals, integer part capped at 10 digits (matches numeric(12,2)'s
-  // maximum representable value).
+  // Same shared IsMoneyString('positive') as CreateTransactionDto.amount —
+  // no sign, no all-zero value, max 2 decimals, integer part capped at 10
+  // digits (matches numeric(12,2)'s maximum representable value).
   @ApiProperty({
     type: String,
     description:
-      'Monthly spending limit as a positive decimal string (no sign, not zero, max 2 decimals), never a JSON number.',
-    pattern: '^(?!0+(\\.0{1,2})?$)\\d{1,10}(\\.\\d{1,2})?$',
+      'Monthly spending limit as a positive decimal string (no sign, not zero, max 2 decimals, max 10 integer digits), never a JSON number.',
+    pattern: POSITIVE_MONEY_REGEX.source,
     example: '800.00',
   })
-  @Matches(/^(?!0+(\.0{1,2})?$)\d{1,10}(\.\d{1,2})?$/, {
-    message:
-      'limit deve ser uma string decimal positiva, sem sinal, com até 2 casas decimais, e não pode ser zero',
-  })
+  @IsMoneyString(
+    'positive',
+    'limit deve ser uma string decimal positiva, sem sinal, com até 2 casas decimais, e não pode ser zero',
+  )
   limit!: string;
 }

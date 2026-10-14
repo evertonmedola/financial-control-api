@@ -1,11 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsEnum, IsString, MaxLength, MinLength } from 'class-validator';
 import {
-  IsEnum,
-  IsString,
-  Matches,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+  IsMoneyString,
+  SIGNED_MONEY_REGEX,
+} from '../../common/validators/is-money-string.decorator';
 import { AccountType } from '../entities/account.entity';
 
 export class CreateAccountDto {
@@ -37,16 +35,18 @@ export class CreateAccountDto {
   // requires an initial balance at creation. The optional leading `-` allows
   // negative balances at creation for every account type (real accounts can
   // start overdrawn); for cartao_credito a negative balance IS the open debt.
-  // No type-specific restriction is applied here.
+  // No type-specific restriction is applied here. The integer part is capped
+  // at 10 digits by the shared IsMoneyString (numeric(12,2) range).
   @ApiProperty({
     type: String,
     description:
-      'Initial balance as a decimal string with up to 2 decimals (negative allowed), never a JSON number. The convention is the same for every account type: a cartao_credito with an existing open debt must be created with a negative initial balance (for example "-300.00").',
-    pattern: '^-?\\d+(\\.\\d{1,2})?$',
+      'Initial balance as a decimal string with up to 2 decimals and at most 10 integer digits (range -9999999999.99 to 9999999999.99, negative allowed), never a JSON number. The convention is the same for every account type: a cartao_credito with an existing open debt must be created with a negative initial balance (for example "-300.00").',
+    pattern: SIGNED_MONEY_REGEX.source,
     example: '1500.00',
   })
-  @Matches(/^-?\d+(\.\d{1,2})?$/, {
-    message: 'balance deve ser uma string decimal com até 2 casas',
-  })
+  @IsMoneyString(
+    'signed',
+    'balance deve ser uma string decimal com até 2 casas decimais e no máximo 10 dígitos na parte inteira',
+  )
   balance!: string;
 }

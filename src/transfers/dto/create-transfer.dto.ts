@@ -4,16 +4,19 @@ import {
   IsDateString,
   IsString,
   IsUUID,
-  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
+import {
+  IsMoneyString,
+  POSITIVE_MONEY_REGEX,
+} from '../../common/validators/is-money-string.decorator';
 
 // D-02: a transfer's own dedicated DTO — no `type` field (always TRANSFER,
-// never client-supplied). Mirrors CreateTransactionDto's amount regex
-// exactly (Prohibition, T-04-13) — this is a separate DTO that must
-// independently enforce the "no sign, no zero, no overflow, max 2 decimals"
-// rule rather than relying on CreateTransactionDto's copy.
+// never client-supplied). Uses the same shared IsMoneyString('positive') as
+// CreateTransactionDto's amount (Prohibition, T-04-13) — this separate DTO
+// must still enforce the "no sign, no zero, no overflow, max 2 decimals"
+// rule on its own field.
 export class CreateTransferDto {
   @ApiProperty({
     description:
@@ -37,13 +40,13 @@ export class CreateTransferDto {
     type: String,
     description:
       'Positive decimal string: no sign, not zero, max 2 decimals, max 10 integer digits.',
-    pattern: '^(?!0+(\\.0{1,2})?$)\\d{1,10}(\\.\\d{1,2})?$',
+    pattern: POSITIVE_MONEY_REGEX.source,
     example: '250.00',
   })
-  @Matches(/^(?!0+(\.0{1,2})?$)\d{1,10}(\.\d{1,2})?$/, {
-    message:
-      'amount deve ser uma string decimal positiva, sem sinal, com até 2 casas decimais, e não pode ser zero',
-  })
+  @IsMoneyString(
+    'positive',
+    'amount deve ser uma string decimal positiva, sem sinal, com até 2 casas decimais, e não pode ser zero',
+  )
   amount!: string;
 
   @ApiProperty({

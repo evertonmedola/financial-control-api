@@ -365,6 +365,51 @@ describe('Budgets (e2e)', () => {
       expect(entry?.remaining).toBe('400.00');
     });
 
+    it('rejects a limit whose integer part overflows numeric(12,2) with 400 on create and on PATCH (stored limit unchanged), and accepts the exact maximum', async () => {
+      const category = await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Limite Overflow', type: 'despesa' });
+      const categoryId = (category.body as EnvelopeBody<CategoryData>).data
+        ?.id as string;
+
+      const overflowCreate = await request(app.getHttpServer())
+        .post('/budgets')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ categoryId, limit: '12345678901.00' });
+      expect(overflowCreate.status).toBe(400);
+
+      const created = await request(app.getHttpServer())
+        .post('/budgets')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ categoryId, limit: '100.00' });
+      expect(created.status).toBe(201);
+      const budgetId = (created.body as EnvelopeBody<BudgetData>).data
+        ?.id as string;
+
+      const overflowPatch = await request(app.getHttpServer())
+        .patch(`/budgets/${budgetId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ limit: '12345678901.00' });
+      expect(overflowPatch.status).toBe(400);
+
+      const afterRejected = await request(app.getHttpServer())
+        .get(`/budgets/${budgetId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect((afterRejected.body as EnvelopeBody<BudgetData>).data?.limit).toBe(
+        '100.00',
+      );
+
+      const maxPatch = await request(app.getHttpServer())
+        .patch(`/budgets/${budgetId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ limit: '9999999999.99' });
+      expect(maxPatch.status).toBe(200);
+      expect((maxPatch.body as EnvelopeBody<BudgetData>).data?.limit).toBe(
+        '9999999999.99',
+      );
+    });
+
     it('PATCH /budgets/:id rejects a body containing categoryId with 400, and the budget category is unchanged', async () => {
       const category = await request(app.getHttpServer())
         .post('/categories')

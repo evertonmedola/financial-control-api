@@ -1,7 +1,9 @@
 import {
   addDecimalStrings,
   isGreaterThanDecimalString,
+  isWithinDecimalRange,
   negateDecimalString,
+  NUMERIC_12_2_MAX_ABS,
   subtractDecimalStrings,
 } from './decimal.util';
 
@@ -69,6 +71,35 @@ describe('decimal.util', () => {
     // Budgets D-08: exactly-at-limit is not over-budget.
     it('returns false when a === b (exactly-at-limit is not over-budget)', () => {
       expect(isGreaterThanDecimalString('100.00', '100.00')).toBe(false);
+    });
+  });
+
+  describe('isWithinDecimalRange', () => {
+    it('exposes the numeric(12,2) maximum absolute value', () => {
+      expect(NUMERIC_12_2_MAX_ABS).toBe('9999999999.99');
+    });
+
+    it.each([
+      '0.00',
+      '0',
+      '-0.00',
+      '9999999999.99',
+      '-9999999999.99',
+      '1500.50',
+    ])(
+      'returns true for %s (inside the range, boundaries inclusive)',
+      (value) => {
+        expect(isWithinDecimalRange(value, NUMERIC_12_2_MAX_ABS)).toBe(true);
+      },
+    );
+
+    it.each([
+      '10000000000.00',
+      '-10000000000.00',
+      '10000000000.01',
+      '-10000000000.01',
+    ])('returns false for %s (one cent or more past the boundary)', (value) => {
+      expect(isWithinDecimalRange(value, NUMERIC_12_2_MAX_ABS)).toBe(false);
     });
   });
 });

@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EntityManager, IsNull, Repository } from 'typeorm';
@@ -139,6 +139,76 @@ describe('AccountsService', () => {
       await expect(
         service.adjustBalance(mockManager, 'user-id', 'account-id', '100.00'),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    // Characterization of the WR-03 guard: the numeric(12,2) range
+    // (+/-9999999999.99) is inclusive, and a mutation that would leave it is
+    // a controlled 400 with nothing persisted.
+    describe('numeric(12,2) range guard', () => {
+      const overflowMessage =
+        'A operação excede o limite máximo permitido para o saldo da conta';
+
+      const run = (balance: string, delta: string) => {
+        const saveMock = jest.fn();
+        saveMock.mockImplementation((entity) => Promise.resolve(entity));
+        const mockManager = {
+          findOne: jest.fn().mockResolvedValue({
+            id: 'account-id',
+            userId: 'user-id',
+            balance,
+          }),
+          save: saveMock,
+        } as unknown as EntityManager;
+        return {
+          saveMock,
+          result: service.adjustBalance(
+            mockManager,
+            'user-id',
+            'account-id',
+            delta,
+          ),
+        };
+      };
+
+      it.each([
+        ['9999999999.99', '0.01'],
+        ['-9999999999.99', '-0.01'],
+      ])(
+        'rejects %s + %s with BadRequestException and never calls save',
+        async (balance, delta) => {
+          const { saveMock, result } = run(balance, delta);
+
+          await expect(result).rejects.toBeInstanceOf(BadRequestException);
+          expect(saveMock.mock.calls.length).toBe(0);
+        },
+      );
+
+      it.each([
+        ['9999999998.99', '1.00', '9999999999.99'],
+        ['-9999999998.99', '-1.00', '-9999999999.99'],
+      ])(
+        'allows %s + %s and saves exactly %s (limit inclusive)',
+        async (balance, delta, expected) => {
+          const { saveMock, result } = run(balance, delta);
+
+          const account = await result;
+
+          expect(account.balance).toBe(expected);
+          const [saved] = saveMock.mock.calls[0] as [Account];
+          expect(saved.balance).toBe(expected);
+        },
+      );
+
+      it('uses a static message without ids or numbers', async () => {
+        const { result } = run('9999999999.99', '0.01');
+
+        await expect(result).rejects.toThrow(overflowMessage);
+        await result.catch((error: BadRequestException) => {
+          expect(error.message).toBe(overflowMessage);
+          expect(error.message).not.toContain('account-id');
+          expect(error.message).not.toMatch(/\d/);
+        });
+      });
     });
   });
 

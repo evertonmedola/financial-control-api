@@ -978,4 +978,126 @@ describe('Transactions (e2e)', () => {
     // cross-tenant/e2e task once /transfers exists (documented deviation,
     // not an oversight — see this plan's action text).
   });
+
+  // Every balance mutation goes through AccountsService.adjustBalance, which
+  // refuses a result outside numeric(12,2) (+/-9999999999.99) with a
+  // controlled 400 inside the QueryRunner transaction. Balances are set at
+  // account creation to sit right at the limit.
+  describe('balance overflow (numeric(12,2))', () => {
+    const createAccountWithBalance = async (
+      balance: string,
+    ): Promise<string> => {
+      const response = await request(app.getHttpServer())
+        .post('/accounts')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: `Conta Limite ${Math.random()}`,
+          type: 'corrente',
+          balance,
+        })
+        .expect(201);
+      return (response.body as EnvelopeBody<AccountData>).data?.id as string;
+    };
+
+    const getBalance = async (id: string): Promise<string | undefined> => {
+      const response = await request(app.getHttpServer())
+        .get(`/accounts/${id}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      return (response.body as EnvelopeBody<AccountData>).data?.balance;
+    };
+
+    const postTransaction = (
+      type: 'income' | 'expense',
+      amount: string,
+      account: string,
+    ) =>
+      request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          type,
+          amount,
+          accountId: account,
+          categoryId,
+          description: 'Overflow de saldo',
+          date: '2026-09-13',
+        });
+
+    it('create on the positive side: an income that would pass +9999999999.99 returns 400 and leaves the balance; reaching the limit exactly is allowed', async () => {
+      const atLimit = await createAccountWithBalance('9999999999.99');
+      const rejected = await postTransaction('income', '0.01', atLimit);
+      expect(rejected.status).toBe(400);
+      expect(await getBalance(atLimit)).toBe('9999999999.99');
+
+      const nearLimit = await createAccountWithBalance('9999999998.99');
+      const allowed = await postTransaction('income', '1.00', nearLimit);
+      expect(allowed.status).toBe(201);
+      expect(await getBalance(nearLimit)).toBe('9999999999.99');
+    });
+
+    it('create on the negative side: an expense that would pass -9999999999.99 returns 400 and leaves the balance; reaching the limit exactly is allowed', async () => {
+      const atLimit = await createAccountWithBalance('-9999999999.99');
+      const rejected = await postTransaction('expense', '0.01', atLimit);
+      expect(rejected.status).toBe(400);
+      expect(await getBalance(atLimit)).toBe('-9999999999.99');
+
+      const nearLimit = await createAccountWithBalance('-9999999998.99');
+      const allowed = await postTransaction('expense', '1.00', nearLimit);
+      expect(allowed.status).toBe(201);
+      expect(await getBalance(nearLimit)).toBe('-9999999999.99');
+    });
+
+    it('delete-revert on the positive side: reverting an expense that would push the balance past +9999999999.99 returns 400, keeps the transaction and the balance; PATCH of the description never touches the balance', async () => {
+      const account = await createAccountWithBalance('9999999899.99');
+      const expense = await postTransaction('expense', '100.00', account);
+      expect(expense.status).toBe(201);
+      const expenseId = (expense.body as EnvelopeBody<TransactionData>).data
+        ?.id as string;
+      expect(await getBalance(account)).toBe('9999999799.99');
+      const income = await postTransaction('income', '200.00', account);
+      expect(income.status).toBe(201);
+      expect(await getBalance(account)).toBe('9999999999.99');
+
+      const deleteResponse = await request(app.getHttpServer())
+        .delete(`/transactions/${expenseId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(deleteResponse.status).toBe(400);
+
+      const stillThere = await request(app.getHttpServer())
+        .get(`/transactions/${expenseId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(stillThere.status).toBe(200);
+      expect(await getBalance(account)).toBe('9999999999.99');
+
+      const patched = await request(app.getHttpServer())
+        .patch(`/transactions/${expenseId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ description: 'descricao nova' });
+      expect(patched.status).toBe(200);
+      expect(await getBalance(account)).toBe('9999999999.99');
+    });
+
+    it('delete-revert on the negative side: reverting an income that would push the balance past -9999999999.99 returns 400, keeps the transaction and the balance', async () => {
+      const account = await createAccountWithBalance('-9999999899.99');
+      const income = await postTransaction('income', '100.00', account);
+      expect(income.status).toBe(201);
+      const incomeId = (income.body as EnvelopeBody<TransactionData>).data
+        ?.id as string;
+      expect(await getBalance(account)).toBe('-9999999799.99');
+      const expense = await postTransaction('expense', '200.00', account);
+      expect(expense.status).toBe(201);
+      expect(await getBalance(account)).toBe('-9999999999.99');
+
+      const deleteResponse = await request(app.getHttpServer())
+        .delete(`/transactions/${incomeId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(deleteResponse.status).toBe(400);
+
+      const stillThere = await request(app.getHttpServer())
+        .get(`/transactions/${incomeId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      expect(stillThere.status).toBe(200);
+      expect(await getBalance(account)).toBe('-9999999999.99');
+    });
+  });
 });

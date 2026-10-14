@@ -5,10 +5,13 @@ import {
   IsIn,
   IsString,
   IsUUID,
-  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
+import {
+  IsMoneyString,
+  POSITIVE_MONEY_REGEX,
+} from '../../common/validators/is-money-string.decorator';
 import { TransactionType } from '../entities/transaction.entity';
 
 export class CreateTransactionDto {
@@ -25,24 +28,23 @@ export class CreateTransactionDto {
   @IsIn([TransactionType.INCOME, TransactionType.EXPENSE])
   type!: TransactionType;
 
-  // The negative lookahead excludes an all-zero value ('0', '0.0', '0.00')
-  // while \d{1,10} caps the integer part at 10 digits — matching
-  // numeric(12,2)'s maximum representable value 9999999999.99, so an
-  // overflowing amount is rejected here (400) rather than as a raw Postgres
-  // overflow error later. No sign character is permitted at all — the
-  // balance-effect sign comes only from `type`, never from a client-
-  // supplied sign (Prohibition, T-04-01).
+  // The shared IsMoneyString('positive') excludes an all-zero value and caps
+  // the integer part at 10 digits — matching numeric(12,2)'s maximum
+  // representable value 9999999999.99, so an overflowing amount is rejected
+  // here (400) rather than as a raw Postgres overflow error later. No sign
+  // character is permitted at all — the balance-effect sign comes only from
+  // `type`, never from a client-supplied sign (Prohibition, T-04-01).
   @ApiProperty({
     type: String,
     description:
       'Positive decimal string: no sign, not zero, max 2 decimals, max 10 integer digits. The sign of the balance effect comes only from `type`.',
-    pattern: '^(?!0+(\\.0{1,2})?$)\\d{1,10}(\\.\\d{1,2})?$',
+    pattern: POSITIVE_MONEY_REGEX.source,
     example: '89.90',
   })
-  @Matches(/^(?!0+(\.0{1,2})?$)\d{1,10}(\.\d{1,2})?$/, {
-    message:
-      'amount deve ser uma string decimal positiva, sem sinal, com até 2 casas decimais, e não pode ser zero',
-  })
+  @IsMoneyString(
+    'positive',
+    'amount deve ser uma string decimal positiva, sem sinal, com até 2 casas decimais, e não pode ser zero',
+  )
   amount!: string;
 
   @ApiProperty({

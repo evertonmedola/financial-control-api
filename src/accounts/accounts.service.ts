@@ -8,17 +8,11 @@ import { EntityManager, IsNull, Repository } from 'typeorm';
 import {
   addDecimalStrings,
   isWithinDecimalRange,
+  NUMERIC_12_2_MAX_ABS,
 } from '../common/decimal.util';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { UpdateAccountDto } from './dto/update-account.dto';
 import { Account } from './entities/account.entity';
-
-// `balance` is `numeric(12,2)` (1789300000000-CreateAccounts.ts): 12 total
-// digits, 2 after the decimal point, so the representable range is exactly
-// +/-9999999999.99. Checked in adjustBalance() before save() so an overflow
-// is a controlled 400, not an unhandled Postgres `numeric field overflow`
-// (WR-03).
-const ACCOUNT_BALANCE_MAX_ABS = '9999999999.99';
 
 @Injectable()
 export class AccountsService {
@@ -123,8 +117,13 @@ export class AccountsService {
     if (!account) {
       throw new NotFoundException();
     }
+    // `balance` is `numeric(12,2)` (1789300000000-CreateAccounts.ts): 12 total
+    // digits, 2 after the decimal point, so the representable range is exactly
+    // +/-NUMERIC_12_2_MAX_ABS. Checked before save() so an overflow is a
+    // controlled 400, not an unhandled Postgres `numeric field overflow`
+    // (WR-03).
     const newBalance = addDecimalStrings(account.balance, delta);
-    if (!isWithinDecimalRange(newBalance, ACCOUNT_BALANCE_MAX_ABS)) {
+    if (!isWithinDecimalRange(newBalance, NUMERIC_12_2_MAX_ABS)) {
       throw new BadRequestException(
         'A operação excede o limite máximo permitido para o saldo da conta',
       );

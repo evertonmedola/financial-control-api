@@ -1,5 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Matches, ValidateIf } from 'class-validator';
+import { ValidateIf } from 'class-validator';
+import {
+  IsMoneyString,
+  POSITIVE_MONEY_REGEX,
+} from '../../common/validators/is-money-string.decorator';
 
 /**
  * PATCH /budgets/:id — `limit` only. D-02: unlike Accounts' `balance`,
@@ -24,18 +28,19 @@ export class UpdateBudgetDto {
   // when `limit` is absent (`undefined`), leaving `null` to reach @Matches,
   // whose underlying `matches()` requires `typeof value === 'string'` and
   // therefore correctly fails (400) instead of reaching the NOT NULL
-  // `limit` column and crashing with an unhandled 500.
+  // `limit` column and crashing with an unhandled 500. IsMoneyString is a
+  // thin wrapper over @Matches, so that null handling is unchanged.
   @ApiPropertyOptional({
     type: String,
     description:
-      'New monthly spending limit as a positive decimal string (no sign, not zero, max 2 decimals).',
-    pattern: '^(?!0+(\\.0{1,2})?$)\\d{1,10}(\\.\\d{1,2})?$',
+      'New monthly spending limit as a positive decimal string (no sign, not zero, max 2 decimals, max 10 integer digits).',
+    pattern: POSITIVE_MONEY_REGEX.source,
     example: '950.00',
   })
   @ValidateIf((_dto, value) => value !== undefined)
-  @Matches(/^(?!0+(\.0{1,2})?$)\d{1,10}(\.\d{1,2})?$/, {
-    message:
-      'limit deve ser uma string decimal positiva, sem sinal, com até 2 casas decimais, e não pode ser zero',
-  })
+  @IsMoneyString(
+    'positive',
+    'limit deve ser uma string decimal positiva, sem sinal, com até 2 casas decimais, e não pode ser zero',
+  )
   limit?: string;
 }
